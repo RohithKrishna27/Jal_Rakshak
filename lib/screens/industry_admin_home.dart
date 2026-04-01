@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'dart:convert';                    // ← This was missing!
+import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -43,13 +44,15 @@ class _IndustryAdminHomeState extends State<IndustryAdminHome> {
   String _potentialHarmText = '';
   List<String> _publicComplaints = [];
 
-  // ====================== CLOCK DATA (Duplicated for self-contained file) ======================
+  // ====================== CLOCK DATA ======================
   static const List<String> MESSAGES = [
-    "Energy Swaraj Yatra 2020-2030 → Solar Power + Clean Rivers!",
-    "296 polluted stretches left. We reduced from 351 (2018). Accelerate now!",
-    "Prof. Chetan Singh Solanki: 'I won't go home till 2030' – neither should pollution!",
-    "One solar bus. One clock. One mission: Healthy Rivers by 2030.",
-    "Climate Clock warned us. Now River Revival Clock demands ACTION!"
+    "India still has 296 polluted river stretches (CPCB). From 351 in 2018 — progress, but not enough.",
+    "Yamuna in Delhi carries nearly 70% sewage load. Urban pollution is choking our rivers.",
+    "If pollution trends continue, several Indian rivers may face ecological tipping points by 2045.",
+    "Industries + untreated sewage are the biggest threats to India's rivers.",
+    "Healthy rivers mean safe drinking water, biodiversity, and food security.",
+    "One clock. One mission: Revive India's rivers before it's too late.",
+    "The countdown is not just time — it is the future of Ganga, Yamuna, Godavari and Krishna."
   ];
 
   static const List<Map<String, dynamic>> RIVER_DATA = [
@@ -85,8 +88,8 @@ class _IndustryAdminHomeState extends State<IndustryAdminHome> {
     },
   ];
 
- static final DateTime TARGET_DATE = DateTime(2030, 1, 1);
-static const int POLLUTED_STRETCHES = 296;
+  static final DateTime TARGET_DATE = DateTime(2055, 1, 1);
+  static const int POLLUTED_STRETCHES = 296;
 
   @override
   void initState() {
@@ -190,6 +193,7 @@ static const int POLLUTED_STRETCHES = 296;
       setState(() => _isAnalyzing = false);
       return;
     }
+
     final url = Uri.parse(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=$apiKey',
     );
@@ -245,6 +249,17 @@ Return ONLY valid JSON (no extra text):
     }
   }
 
+  Future<void> _logout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Logout failed: $e')),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _clockTimer.cancel();
@@ -261,6 +276,13 @@ Return ONLY valid JSON (no extra text):
         title: const Text('Jal Rakshak • Industry',
             style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: _logout,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -278,7 +300,7 @@ Return ONLY valid JSON (no extra text):
                 style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 28),
 
-            // River Revival Clock (same beautiful design)
+            // River Revival Clock
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -296,8 +318,7 @@ Return ONLY valid JSON (no extra text):
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: const [
-                      Icon(Icons.water_drop,
-                          color: Colors.white, size: 42),
+                      Icon(Icons.water_drop, color: Colors.white, size: 42),
                       SizedBox(width: 12),
                       Text('RIVER REVIVAL CLOCK',
                           style: TextStyle(
@@ -313,9 +334,8 @@ Return ONLY valid JSON (no extra text):
                           fontWeight: FontWeight.bold,
                           color: Colors.white)),
                   const SizedBox(height: 8),
-                  const Text('until 2030 • Healthy Rivers Mission',
-                      style:
-                          TextStyle(fontSize: 16, color: Colors.white70)),
+                  const Text('until 2055 • Healthy Rivers Mission',
+                      style: TextStyle(fontSize: 16, color: Colors.white70)),
                   const SizedBox(height: 20),
                   Text(
                       '🌊 $POLLUTED_STRETCHES polluted stretches left in India',
@@ -330,8 +350,7 @@ Return ONLY valid JSON (no extra text):
                         color: Colors.white.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(16)),
                     child: Text(_currentRiverInfo,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 15),
+                        style: const TextStyle(color: Colors.white, fontSize: 15),
                         textAlign: TextAlign.center),
                   ),
                   const SizedBox(height: 14),
@@ -350,15 +369,13 @@ Return ONLY valid JSON (no extra text):
 
             // Industry Details
             const Text('Your Industry Details',
-                style: TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             TextField(
               onChanged: (v) => _industryName = v,
               decoration: InputDecoration(
                 labelText: 'Industry Name',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
               ),
             ),
             const SizedBox(height: 16),
@@ -366,8 +383,7 @@ Return ONLY valid JSON (no extra text):
               value: _selectedSector,
               decoration: InputDecoration(
                 labelText: 'Sector',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
               ),
               items: _sectors
                   .map((s) => DropdownMenuItem(value: s, child: Text(s)))
@@ -377,8 +393,9 @@ Return ONLY valid JSON (no extra text):
             const SizedBox(height: 24),
 
             ElevatedButton.icon(
-              onPressed:
-                  (_isLoadingLocation || _isAnalyzing) ? null : _getLocationAndAnalyzeImpact,
+              onPressed: (_isLoadingLocation || _isAnalyzing)
+                  ? null
+                  : _getLocationAndAnalyzeImpact,
               icon: const Icon(Icons.analytics),
               label: const Text('Analyze 500m River Impact'),
               style: ElevatedButton.styleFrom(
@@ -399,7 +416,7 @@ Return ONLY valid JSON (no extra text):
 
             const SizedBox(height: 30),
 
-            // Results
+            // Analysis Results
             if (_potentialHarmText.isNotEmpty) ...[
               const Text('Potential Harm within 500m of river surface',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -407,8 +424,7 @@ Return ONLY valid JSON (no extra text):
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Text(_potentialHarmText,
-                      style: const TextStyle(fontSize: 15)),
+                  child: Text(_potentialHarmText, style: const TextStyle(fontSize: 15)),
                 ),
               ),
               const SizedBox(height: 24),
@@ -418,8 +434,7 @@ Return ONLY valid JSON (no extra text):
               ..._publicComplaints.map((c) => Card(
                     margin: const EdgeInsets.only(bottom: 10),
                     child: ListTile(
-                      leading:
-                          const Icon(Icons.warning_amber, color: Colors.red),
+                      leading: const Icon(Icons.warning_amber, color: Colors.red),
                       title: Text(c),
                     ),
                   )),
@@ -430,8 +445,7 @@ Return ONLY valid JSON (no extra text):
 
             // Quick Actions
             const Text('Industry Actions',
-                style: TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             GridView.count(
               shrinkWrap: true,
@@ -440,14 +454,10 @@ Return ONLY valid JSON (no extra text):
               crossAxisSpacing: 14,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                _quickActionCard('Self Monitoring',
-                    Icons.monitor_heart_outlined, Colors.blue),
-                _quickActionCard('Submit Compliance',
-                    Icons.assignment_turned_in_outlined, Colors.green),
-                _quickActionCard('View Public Feedback',
-                    Icons.feedback_outlined, Colors.orange),
-                _quickActionCard('River 500m Buffer',
-                    Icons.security_outlined, Colors.purple),
+                _quickActionCard('Self Monitoring', Icons.monitor_heart_outlined, Colors.blue),
+                _quickActionCard('Submit Compliance', Icons.assignment_turned_in_outlined, Colors.green),
+                _quickActionCard('View Public Feedback', Icons.feedback_outlined, Colors.orange),
+                _quickActionCard('River 500m Buffer', Icons.security_outlined, Colors.purple),
               ],
             ),
           ],
@@ -460,13 +470,10 @@ Return ONLY valid JSON (no extra text):
         type: BottomNavigationBarType.fixed,
         currentIndex: 0,
         items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_filled), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle_outline), label: 'Report'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.people), label: 'Community'),
+          BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: 'Report'),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Community'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
@@ -505,7 +512,10 @@ Return ONLY valid JSON (no extra text):
           alignment: Alignment.centerLeft,
           child: Text(
             'All Rivers (snapshot)',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 0.2),
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2),
           ),
         ),
         const SizedBox(height: 10),
@@ -525,6 +535,7 @@ Return ONLY valid JSON (no extra text):
                       : status.contains('Moderately')
                           ? const Color(0xFFFFF5D6)
                           : const Color(0xFFE7F9EE);
+
               final Color textColor = status.contains('Severely') || status.contains('Highly')
                   ? const Color(0xFF8A1C1C)
                   : status.contains('Moderately')
@@ -549,7 +560,8 @@ Return ONLY valid JSON (no extra text):
                         Expanded(
                           child: Text(
                             '${river['name']}',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                            style: const TextStyle(
+                                color: Colors.white, fontWeight: FontWeight.w800),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -558,7 +570,8 @@ Return ONLY valid JSON (no extra text):
                     const SizedBox(height: 8),
                     Text(
                       'BOD ${river['bod']} mg/L',
-                      style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          color: Colors.white70, fontWeight: FontWeight.w600),
                     ),
                     const Spacer(),
                     Container(
@@ -569,7 +582,10 @@ Return ONLY valid JSON (no extra text):
                       ),
                       child: Text(
                         '${river['status']}',
-                        style: TextStyle(color: textColor, fontWeight: FontWeight.w800, fontSize: 12),
+                        style: TextStyle(
+                            color: textColor,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),

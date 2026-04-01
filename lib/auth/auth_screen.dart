@@ -21,6 +21,7 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isSubmitting = false;
   bool _obscurePassword = true;
   String _selectedRole = 'user';
+  String _loginRoleHint = 'user';
   String? _error;
 
   @override
@@ -113,11 +114,18 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isIndustryHint = (_isLogin ? _loginRoleHint : _selectedRole) == 'industry_admin';
+    final accent = isIndustryHint ? const Color(0xFF7C3AED) : const Color(0xFF0EA5E9);
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFE0F7FA), Color(0xFFF2FDFF)],
+            colors: [
+              accent.withOpacity(0.16),
+              const Color(0xFFF7FBFF),
+              const Color(0xFFFFFFFF),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -128,7 +136,7 @@ class _AuthScreenState extends State<AuthScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
               child: Card(
-                elevation: 4,
+                elevation: 10,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -140,21 +148,83 @@ class _AuthScreenState extends State<AuthScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        Center(
+                          child: Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: accent.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: Icon(
+                              isIndustryHint ? Icons.factory_outlined : Icons.water_drop_outlined,
+                              color: accent,
+                              size: 34,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
                         Text(
                           'Jal Rakshak',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                              ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
                         Text(
                           _isLogin
-                              ? 'Login to continue'
+                              ? (isIndustryHint ? 'Industry login' : 'Login to continue')
                               : 'Create your account',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: accent.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: accent.withOpacity(0.18)),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: ChoiceChip(
+                                  label: const Text('Normal User'),
+                                  selected: (_isLogin ? _loginRoleHint : _selectedRole) == 'user',
+                                  onSelected: (v) {
+                                    if (!v) return;
+                                    setState(() {
+                                      if (_isLogin) {
+                                        _loginRoleHint = 'user';
+                                      } else {
+                                        _selectedRole = 'user';
+                                      }
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: ChoiceChip(
+                                  label: const Text('Industry Admin'),
+                                  selected: (_isLogin ? _loginRoleHint : _selectedRole) == 'industry_admin',
+                                  onSelected: (v) {
+                                    if (!v) return;
+                                    setState(() {
+                                      if (_isLogin) {
+                                        _loginRoleHint = 'industry_admin';
+                                      } else {
+                                        _selectedRole = 'industry_admin';
+                                      }
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         if (widget.infoMessage != null) ...[
                           const SizedBox(height: 16),
@@ -187,9 +257,13 @@ class _AuthScreenState extends State<AuthScreen> {
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Email',
-                            prefixIcon: Icon(Icons.email_outlined),
+                            prefixIcon: const Icon(Icons.email_outlined),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: accent, width: 1.6),
+                            ),
                           ),
                           validator: (value) {
                             if (value == null || !value.contains('@')) {
@@ -216,6 +290,10 @@ class _AuthScreenState extends State<AuthScreen> {
                                     : Icons.visibility,
                               ),
                             ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: accent, width: 1.6),
+                            ),
                           ),
                           validator: (value) {
                             if (value == null || value.length < 6) {
@@ -224,28 +302,6 @@ class _AuthScreenState extends State<AuthScreen> {
                             return null;
                           },
                         ),
-                        if (!_isLogin) ...[
-                          const SizedBox(height: 14),
-                          SegmentedButton<String>(
-                            showSelectedIcon: false,
-                            segments: const [
-                              ButtonSegment(
-                                value: 'user',
-                                icon: Icon(Icons.person),
-                                label: Text('Normal User'),
-                              ),
-                              ButtonSegment(
-                                value: 'industry_admin',
-                                icon: Icon(Icons.factory),
-                                label: Text('Industry Admin'),
-                              ),
-                            ],
-                            selected: {_selectedRole},
-                            onSelectionChanged: (value) {
-                              setState(() => _selectedRole = value.first);
-                            },
-                          ),
-                        ],
                         if (_error != null) ...[
                           const SizedBox(height: 14),
                           Text(
@@ -259,6 +315,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           onPressed: _isSubmitting ? null : _submit,
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: accent,
                           ),
                           child: _isSubmitting
                               ? const SizedBox(
