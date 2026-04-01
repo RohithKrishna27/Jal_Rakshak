@@ -7,7 +7,8 @@ class WaterBodiesActionScreen extends StatefulWidget {
   final int initialTabIndex;
 
   @override
-  State<WaterBodiesActionScreen> createState() => _WaterBodiesActionScreenState();
+  State<WaterBodiesActionScreen> createState() =>
+      _WaterBodiesActionScreenState();
 }
 
 class _WaterBodiesActionScreenState extends State<WaterBodiesActionScreen> {
@@ -90,7 +91,8 @@ class _WaterBodiesActionScreenState extends State<WaterBodiesActionScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Report submitted successfully. Our team will verify and notify you.'),
+        content: Text(
+            'Report submitted successfully. Our team will verify and notify you.'),
         backgroundColor: Color(0xFF15803D),
       ),
     );
@@ -160,7 +162,8 @@ class _WaterBodiesActionScreenState extends State<WaterBodiesActionScreen> {
                     status: item['status'].toString(),
                     bod: item['bod'].toString(),
                     trend: item['trend'].toString(),
-                    fact: 'Live monitored segment for proactive intervention and local action.',
+                    fact:
+                        'Live monitored segment for proactive intervention and local action.',
                   ),
                 ),
               );
@@ -184,14 +187,16 @@ class _WaterBodiesActionScreenState extends State<WaterBodiesActionScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: color.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           item['status'] as String,
-                          style: TextStyle(color: color, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                              color: color, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
@@ -199,12 +204,16 @@ class _WaterBodiesActionScreenState extends State<WaterBodiesActionScreen> {
                   const SizedBox(height: 10),
                   Text(
                     'BOD: ${item['bod']} mg/L',
-                    style: const TextStyle(fontSize: 14, color: Color(0xFF475569)),
+                    style:
+                        const TextStyle(fontSize: 14, color: Color(0xFF475569)),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Trend: ${item['trend']}',
-                    style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                        fontSize: 14,
+                        color: color,
+                        fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -243,23 +252,35 @@ class _WaterBodiesActionScreenState extends State<WaterBodiesActionScreen> {
                     labelText: 'Water Body Name',
                     hintText: 'e.g. Yamuna - Wazirabad',
                   ),
-                  validator: (value) =>
-                      (value == null || value.trim().isEmpty) ? 'Please enter water body name' : null,
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Please enter water body name'
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedIssueType,
+                  value: _selectedIssueType,
                   decoration: const InputDecoration(labelText: 'Issue Type'),
                   items: const [
-                    DropdownMenuItem(value: 'Sewage Discharge', child: Text('Sewage Discharge')),
-                    DropdownMenuItem(value: 'Industrial Waste', child: Text('Industrial Waste')),
-                    DropdownMenuItem(value: 'Plastic Dumping', child: Text('Plastic Dumping')),
-                    DropdownMenuItem(value: 'Foam/Chemical Layer', child: Text('Foam/Chemical Layer')),
-                    DropdownMenuItem(value: 'Oil Spill', child: Text('Oil Spill')),
+                    DropdownMenuItem(
+                        value: 'Sewage Discharge',
+                        child: Text('Sewage Discharge')),
+                    DropdownMenuItem(
+                        value: 'Industrial Waste',
+                        child: Text('Industrial Waste')),
+                    DropdownMenuItem(
+                        value: 'Plastic Dumping',
+                        child: Text('Plastic Dumping')),
+                    DropdownMenuItem(
+                        value: 'Foam/Chemical Layer',
+                        child: Text('Foam/Chemical Layer')),
+                    DropdownMenuItem(
+                        value: 'Oil Spill', child: Text('Oil Spill')),
                   ],
                   onChanged: (value) {
                     if (value != null) {
-                      setState(() => _selectedIssueType = value);
+                      setState(() {
+                        _selectedIssueType = value;
+                      });
                     }
                   },
                 ),
@@ -272,7 +293,9 @@ class _WaterBodiesActionScreenState extends State<WaterBodiesActionScreen> {
                     hintText: 'Describe what you observed',
                   ),
                   validator: (value) =>
-                      (value == null || value.trim().length < 10) ? 'Please add at least 10 characters' : null,
+                      (value == null || value.trim().length < 10)
+                          ? 'Please add at least 10 characters'
+                          : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -315,7 +338,8 @@ class _WaterBodiesActionScreenState extends State<WaterBodiesActionScreen> {
         return Card(
           elevation: 0,
           margin: const EdgeInsets.only(bottom: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -323,14 +347,18 @@ class _WaterBodiesActionScreenState extends State<WaterBodiesActionScreen> {
               children: [
                 Text(
                   item['title'] as String,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
-                Text('Location: ${item['place']}', style: const TextStyle(color: Color(0xFF475569))),
+                Text('Location: ${item['place']}',
+                    style: const TextStyle(color: Color(0xFF475569))),
                 const SizedBox(height: 4),
-                Text('Time: ${item['time']}', style: const TextStyle(color: Color(0xFF475569))),
+                Text('Time: ${item['time']}',
+                    style: const TextStyle(color: Color(0xFF475569))),
                 const SizedBox(height: 4),
-                Text('Volunteers joined: ${item['volunteers']}', style: const TextStyle(color: Color(0xFF475569))),
+                Text('Volunteers joined: ${item['volunteers']}',
+                    style: const TextStyle(color: Color(0xFF475569))),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
@@ -344,7 +372,8 @@ class _WaterBodiesActionScreenState extends State<WaterBodiesActionScreen> {
                         }
                       });
                     },
-                    icon: Icon(joined ? Icons.check_circle : Icons.volunteer_activism),
+                    icon: Icon(
+                        joined ? Icons.check_circle : Icons.volunteer_activism),
                     label: Text(joined ? 'Joined' : 'Join Campaign'),
                   ),
                 ),
@@ -425,7 +454,8 @@ class _StatTile extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               value,
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: color),
+              style: TextStyle(
+                  fontSize: 28, fontWeight: FontWeight.w900, color: color),
             ),
             const SizedBox(height: 6),
             Text(subtitle, style: const TextStyle(color: Color(0xFF475569))),
