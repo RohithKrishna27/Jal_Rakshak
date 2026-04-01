@@ -107,9 +107,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+    final isKeyboardOpen = keyboardInset > 0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F8FB),
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: const Color(0xFF0A3D62),
         elevation: 0,
@@ -132,102 +135,104 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         ),
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0A3D62), Color(0xFF1565C0)],
+            if (!isKeyboardOpen)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0A3D62), Color(0xFF1565C0)],
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0A3D62).withOpacity(0.18),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF0A3D62).withOpacity(0.18),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.16),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(
-                        Icons.water_drop,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Jal Rakshak Assistant',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Local Ollama gpt-oss:120b-cloud chat for river help, pollution guidance, and app support.',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13.5,
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: _suggestions
-                      .map(
-                        (suggestion) => ActionChip(
-                          label: Text(suggestion),
-                          backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                            side: BorderSide(
-                              color: const Color(0xFF0A3D62).withOpacity(0.10),
-                            ),
-                          ),
-                          labelStyle: const TextStyle(
-                            color: Color(0xFF0A3D62),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          onPressed: () {
-                            _messageController.text = suggestion;
-                            _messageController.selection = TextSelection.collapsed(
-                              offset: suggestion.length,
-                            );
-                          },
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.16),
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                      )
-                      .toList(),
+                        child: const Icon(
+                          Icons.water_drop,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Jal Rakshak Assistant',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Local Ollama gpt-oss:120b-cloud chat for river help, pollution guidance, and app support.',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13.5,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
+            if (!isKeyboardOpen)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: _suggestions
+                        .map(
+                          (suggestion) => ActionChip(
+                            label: Text(suggestion),
+                            backgroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              side: BorderSide(
+                                color: const Color(0xFF0A3D62).withOpacity(0.10),
+                              ),
+                            ),
+                            labelStyle: const TextStyle(
+                              color: Color(0xFF0A3D62),
+                              fontWeight: FontWeight.w600,
+                            ),
+                            onPressed: () {
+                              _messageController.text = suggestion;
+                              _messageController.selection = TextSelection.collapsed(
+                                offset: suggestion.length,
+                              );
+                            },
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ),
             Expanded(
               child: Container(
                 margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -244,7 +249,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 ),
                 child: ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: EdgeInsets.fromLTRB(16, 18, 16, isKeyboardOpen ? 24 : 18),
                   itemCount: _messages.length,
                   itemBuilder: (context, index) {
                     final message = _messages[index];
@@ -301,54 +307,59 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 padding: EdgeInsets.only(bottom: 8),
                 child: LinearProgressIndicator(minHeight: 2),
               ),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _messageController,
-                          minLines: 1,
-                          maxLines: 4,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) => _sendMessage(),
-                          decoration: InputDecoration(
-                            hintText: 'Ask about rivers, reports, cleanup, or app help',
-                            filled: true,
-                            fillColor: const Color(0xFFF7FAFC),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
+            AnimatedPadding(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.only(bottom: keyboardInset),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            minLines: 1,
+                            maxLines: 4,
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) => _sendMessage(),
+                            decoration: InputDecoration(
+                              hintText: 'Ask about rivers, reports, cleanup, or app help',
+                              filled: true,
+                              fillColor: const Color(0xFFF7FAFC),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      FloatingActionButton.small(
-                        onPressed: _isSending ? null : _sendMessage,
-                        backgroundColor: const Color(0xFF0A3D62),
-                        child: const Icon(Icons.send, color: Colors.white),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        FloatingActionButton.small(
+                          onPressed: _isSending ? null : _sendMessage,
+                          backgroundColor: const Color(0xFF0A3D62),
+                          child: const Icon(Icons.send, color: Colors.white),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

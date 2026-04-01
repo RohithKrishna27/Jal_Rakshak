@@ -6,6 +6,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:priject_jalrakshak/screens/water_bodies_action_screen.dart';
+import 'package:priject_jalrakshak/screens/water_body_detail_screen.dart';
+import 'package:priject_jalrakshak/screens/profile_screen.dart';
 
 void _fireAndForget(Future<void> f) {}
 
@@ -30,50 +33,8 @@ class MyApp extends StatelessWidget {
       ),
       home: const NormalUserHome(name: "User"), // Change name as needed
       routes: {
-        '/profile': (context) => const ProfileScreen(),
+        '/profile': (context) => const UserProfileScreen(),
       },
-    );
-  }
-}
-
-// ====================== PROFILE SCREEN (New Route) ======================
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0A3D62),
-        title: const Text('My Profile'),
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircleAvatar(
-              radius: 60,
-              backgroundColor: Color(0xFF00BFFF),
-              child: Icon(Icons.person, size: 80, color: Colors.white),
-            ),
-            SizedBox(height: 20),
-            Text(
-              'Namaste!',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              'You are part of the River Revival Mission',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            SizedBox(height: 40),
-            Text(
-              'Total Actions Taken: 12\nRivers Monitored: 7\nReports Submitted: 3',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, height: 1.6),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -106,8 +67,8 @@ class _NormalUserHomeState extends State<NormalUserHome> {
   int _selectedIndex = 0;
   final List<String> _pageTitles = [
     'Jal Rakshak',
-    'River Map',
-    'All Rivers',
+    'Water Bodies Map',
+    'All Water Bodies',
     'Take Action',
   ];
 
@@ -702,7 +663,7 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('All Major Rivers of India',
+            const Text('All Major Water Bodies of India',
               style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
@@ -723,28 +684,44 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
                 margin: const EdgeInsets.only(bottom: 16),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(22)),
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(r['name'],
-                              style: const TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.bold)),
-                          Chip(
-                              label: Text(r['status']),
-                              backgroundColor: color.withOpacity(0.15),
-                              labelStyle: TextStyle(color: color)),
-                        ],
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(22),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => WaterBodyDetailScreen(
+                          name: r['name'].toString(),
+                          status: r['status'].toString(),
+                          bod: r['bod'].toString(),
+                          fact: r['fact'].toString(),
+                        ),
                       ),
-                      Text('BOD: ${r['bod']} mg/L',
-                          style: const TextStyle(color: Colors.grey)),
-                      const SizedBox(height: 12),
-                      Text(r['fact'], style: const TextStyle(height: 1.45)),
-                    ],
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(r['name'],
+                                style: const TextStyle(
+                                    fontSize: 20, fontWeight: FontWeight.bold)),
+                            Chip(
+                                label: Text(r['status']),
+                                backgroundColor: color.withOpacity(0.15),
+                                labelStyle: TextStyle(color: color)),
+                          ],
+                        ),
+                        Text('BOD: ${r['bod']} mg/L',
+                            style: const TextStyle(color: Colors.grey)),
+                        const SizedBox(height: 12),
+                        Text(r['fact'], style: const TextStyle(height: 1.45)),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -774,20 +751,20 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
             mainAxisSpacing: 20,
             crossAxisSpacing: 20,
             children: [
-              _buildTappableQuickAction('Monitor Rivers', Icons.map_outlined,
-                  Colors.blue, 'Live river map coming soon'),
+              _buildTappableQuickAction(
+                  'Monitor Water Bodies', Icons.map_outlined, Colors.blue, 0),
               _buildTappableQuickAction(
                   'Report Pollution',
                   Icons.report_problem_outlined,
                   Colors.red,
-                  'Report pollution spot'),
+                  1),
               _buildTappableQuickAction(
                   'Join Campaign',
                   Icons.campaign_outlined,
                   Colors.green,
-                  'Join a local river-cleanup campaign'),
+                  2),
               _buildTappableQuickAction('View Stats', Icons.bar_chart_outlined,
-                  Colors.orange, 'National river health dashboard'),
+                  Colors.orange, 3),
             ],
           ),
         ],
@@ -796,11 +773,17 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
   }
 
   Widget _buildTappableQuickAction(
-      String title, IconData icon, Color color, String message) {
+      String title, IconData icon, Color color, int initialTabIndex) {
     return GestureDetector(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message), backgroundColor: color));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WaterBodiesActionScreen(
+              initialTabIndex: initialTabIndex,
+            ),
+          ),
+        );
       },
       child: Container(
         decoration: BoxDecoration(
@@ -827,12 +810,20 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
   Widget _quickActionCard(String title, IconData icon, Color color) {
     return GestureDetector(
       onTap: () {
-        if (title == 'Monitor Rivers') {
-          Navigator.pushNamed(context, '/profile'); // Example of new routing
-        } else {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('$title clicked')));
-        }
+        final tabMap = <String, int>{
+          'Monitor Water Bodies': 0,
+          'Report Pollution': 1,
+          'Join Campaign': 2,
+          'View Stats': 3,
+        };
+        final initialTab = tabMap[title] ?? 0;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WaterBodiesActionScreen(initialTabIndex: initialTab),
+          ),
+        );
       },
       child: Container(
         decoration: BoxDecoration(
@@ -881,7 +872,8 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
       appBar: AppBar(
         backgroundColor: const Color(0xFF0A3D62),
         title: Text(_pageTitles[_selectedIndex],
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold, color: Colors.white)),
         centerTitle: true,
         actions: [
           IconButton(
@@ -943,18 +935,30 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
                             Icon(Icons.person, color: Colors.white, size: 32)),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Namaste, ${widget.name}!',
-                              style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF0A3D62))),
-                          const Text('Let’s revive India’s rivers together',
-                              style:
-                                  TextStyle(fontSize: 16, color: Colors.grey)),
-                        ],
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF0A3D62), Color(0xFF1565C0)],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Namaste, ${widget.name}!',
+                                style: const TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white)),
+                            const Text('Let’s revive India’s rivers together',
+                                style:
+                                    TextStyle(fontSize: 15, color: Colors.white70)),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -1046,11 +1050,11 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
 
                 const SizedBox(height: 36),
 
-                // Nearest Rivers
+                // Nearest Water Bodies
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Nearest Rivers to You',
+                    const Text('Nearest Water Bodies to You',
                         style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -1094,30 +1098,47 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
                         margin: const EdgeInsets.only(bottom: 16),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(22)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(18),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(r['name'],
-                                      style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold)),
-                                  Chip(
-                                      label: Text(r['status']),
-                                      backgroundColor: color.withOpacity(0.15)),
-                                ],
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(22),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => WaterBodyDetailScreen(
+                                  name: r['name'].toString(),
+                                  status: r['status'].toString(),
+                                  bod: r['bod'].toString(),
+                                  fact: r['fact'].toString(),
+                                  trend: '${r['distance_km']} km away',
+                                ),
                               ),
-                              Text(
-                                  '${r['distance_km']} km away • BOD ${r['bod']} mg/L',
-                                  style: const TextStyle(color: Colors.grey)),
-                              const SizedBox(height: 12),
-                              Text(r['fact']),
-                            ],
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(18),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(r['name'],
+                                        style: const TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold)),
+                                    Chip(
+                                        label: Text(r['status']),
+                                        backgroundColor: color.withOpacity(0.15)),
+                                  ],
+                                ),
+                                Text(
+                                    '${r['distance_km']} km away • BOD ${r['bod']} mg/L',
+                                    style: const TextStyle(color: Colors.grey)),
+                                const SizedBox(height: 12),
+                                Text(r['fact']),
+                              ],
+                            ),
                           ),
                         ),
                       );
@@ -1139,7 +1160,7 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
                     _quickActionCard(
-                        'Monitor Rivers', Icons.map_outlined, Colors.blue),
+                      'Monitor Water Bodies', Icons.map_outlined, Colors.blue),
                     _quickActionCard('Report Pollution',
                         Icons.report_problem_outlined, Colors.red),
                     _quickActionCard(
@@ -1176,7 +1197,7 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
           BottomNavigationBarItem(
               icon: Icon(Icons.water_drop_outlined),
               activeIcon: Icon(Icons.water_drop),
-              label: 'Rivers'),
+              label: 'Water Bodies'),
           BottomNavigationBarItem(
               icon: Icon(Icons.campaign_outlined),
               activeIcon: Icon(Icons.campaign),
