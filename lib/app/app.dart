@@ -8,6 +8,8 @@ import 'package:priject_jalrakshak/screens/user/join_campaign_screen.dart';
 import 'package:priject_jalrakshak/screens/user/monitor_water_bodies_screen.dart';
 import 'package:priject_jalrakshak/screens/user/report_pollution_screen.dart';
 import 'package:priject_jalrakshak/screens/user/view_stats_screen.dart';
+import 'package:priject_jalrakshak/industry/industry_portal_args.dart';
+import 'package:priject_jalrakshak/screens/industry/industry_portal_screen.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -27,6 +29,14 @@ class App extends StatelessWidget {
         '/report-pollution': (context) => const ReportPollutionScreen(),
         '/join-campaign': (context) => const JoinCampaignScreen(),
         '/view-stats': (context) => const ViewStatsScreen(),
+        '/industry-portal': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          return IndustryPortalScreen(
+            args: args is IndustryPortalArgs
+                ? args
+                : const IndustryPortalArgs(adminDisplayName: 'Industry'),
+          );
+        },
       },
     );
   }

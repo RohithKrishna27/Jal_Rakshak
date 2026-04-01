@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:priject_jalrakshak/industry/industry_portal_args.dart';
+import 'package:priject_jalrakshak/screens/industry/industry_portal_screen.dart';
 
 class IndustryAdminHome extends StatefulWidget {
   const IndustryAdminHome({super.key, required this.name});
@@ -18,6 +20,9 @@ class _IndustryAdminHomeState extends State<IndustryAdminHome> {
   late Timer _clockTimer;
   int _riverIndex = 0;
   int _msgIndex = 0;
+
+  /// Bottom nav: 0 Home, 1 Self Monitoring, 2 Compliance, 3 Feedback, 4 River buffer.
+  int _bottomNavIndex = 0;
 
   String _countdown = "0000 DAYS 00:00:00";
   String _currentRiverInfo = "";
@@ -249,6 +254,38 @@ Return ONLY valid JSON (no extra text):
     }
   }
 
+  void _openIndustryPortal({int initialTab = 0}) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        settings: const RouteSettings(name: '/industry-portal'),
+        builder: (ctx) => IndustryPortalScreen(
+          args: IndustryPortalArgs(
+            adminDisplayName: widget.name,
+            userId: uid,
+            initialTabIndex: initialTab.clamp(0, 3),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Maps bottom bar index → industry portal tab (0 company … 3 complaints).
+  static int _portalTabForBottomNav(int navIndex) {
+    switch (navIndex) {
+      case 1:
+        return 1; // nearest IoT nodes
+      case 2:
+        return 0; // company / compliance registration
+      case 3:
+        return 3; // complaints / public feedback
+      case 4:
+        return 2; // contamination / buffer risk
+      default:
+        return 0;
+    }
+  }
+
   Future<void> _logout() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -278,13 +315,78 @@ Return ONLY valid JSON (no extra text):
         centerTitle: true,
         actions: [
           IconButton(
+            icon: const Icon(Icons.dashboard_customize_outlined),
+            tooltip: 'Industry portal',
+            onPressed: () => _openIndustryPortal(),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
             onPressed: _logout,
           ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: IndexedStack(
+        index: _bottomNavIndex == 0 ? 0 : 1,
+        children: [
+          _buildHomeScrollContent(),
+          ColoredBox(
+            color: const Color(0xFFF1F5F9),
+            child: IndustryPortalScreen(
+              key: const ValueKey<Object>('industry_portal_embedded'),
+              args: IndustryPortalArgs(
+                adminDisplayName: widget.name,
+                userId: FirebaseAuth.instance.currentUser?.uid,
+                initialTabIndex: 0,
+              ),
+              embedded: true,
+              visibleTabIndex: _bottomNavIndex == 0
+                  ? null
+                  : _portalTabForBottomNav(_bottomNavIndex),
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFF0A3D62),
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        currentIndex: _bottomNavIndex,
+        onTap: (i) => setState(() => _bottomNavIndex = i),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.monitor_heart_outlined),
+            activeIcon: Icon(Icons.monitor_heart),
+            label: 'Monitor',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.assignment_turned_in_outlined),
+            activeIcon: Icon(Icons.assignment_turned_in),
+            label: 'Compliance',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.feedback_outlined),
+            activeIcon: Icon(Icons.feedback),
+            label: 'Feedback',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.security_outlined),
+            activeIcon: Icon(Icons.security),
+            label: 'Buffer',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHomeScrollContent() {
+    return SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,6 +400,22 @@ Return ONLY valid JSON (no extra text):
             ),
             const Text('Industry Dashboard – Monitor your river impact',
                 style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => _openIndustryPortal(),
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Open full portal (tabs + close)'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF4C1D95),
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Use the bottom bar for Self Monitoring, Compliance, Feedback, and River buffer — same tools as before.',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
             const SizedBox(height: 28),
 
             // River Revival Clock
@@ -440,67 +558,8 @@ Return ONLY valid JSON (no extra text):
                   )),
             ] else if (_isAnalyzing)
               const Center(child: CircularProgressIndicator()),
-
-            const SizedBox(height: 40),
-
-            // Quick Actions
-            const Text('Industry Actions',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            GridView.count(
-              shrinkWrap: true,
-              crossAxisCount: 2,
-              mainAxisSpacing: 14,
-              crossAxisSpacing: 14,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _quickActionCard('Self Monitoring', Icons.monitor_heart_outlined, Colors.blue),
-                _quickActionCard('Submit Compliance', Icons.assignment_turned_in_outlined, Colors.green),
-                _quickActionCard('View Public Feedback', Icons.feedback_outlined, Colors.orange),
-                _quickActionCard('River 500m Buffer', Icons.security_outlined, Colors.purple),
-              ],
-            ),
           ],
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF0A3D62),
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        currentIndex: 0,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
-          BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: 'Report'),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Community'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
-    );
-  }
-
-  Widget _quickActionCard(String title, IconData icon, Color color) {
-    return GestureDetector(
-      onTap: () => ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('$title clicked'))),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(color: color.withOpacity(0.15), blurRadius: 12)
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 48, color: color),
-            const SizedBox(height: 12),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-          ],
-        ),
-      ),
     );
   }
 
