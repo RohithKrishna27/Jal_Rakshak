@@ -5,41 +5,12 @@ import 'dart:math' as math;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:priject_jalrakshak/screens/globe_screen.dart';
-import 'package:priject_jalrakshak/screens/water_bodies_action_screen.dart';
+import 'package:priject_jalrakshak/screens/user_home_tab_pages.dart';
 import 'package:priject_jalrakshak/screens/water_body_detail_screen.dart';
-import 'package:priject_jalrakshak/screens/profile_screen.dart';
 
 void _fireAndForget(Future<void> f) {}
 
 enum _HomeMenuAction { profile, logout }
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Jal Rakshak',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-        fontFamily: 'Roboto',
-      ),
-      home: const NormalUserHome(name: "User"), // Change name as needed
-      routes: {
-        '/profile': (context) => const UserProfileScreen(),
-        '/globe': (context) => const GlobeScreen(),
-      },
-    );
-  }
-}
 
 // ====================== MAIN HOME SCREEN ======================
 class NormalUserHome extends StatefulWidget {
@@ -69,27 +40,11 @@ class _NormalUserHomeState extends State<NormalUserHome> {
   int _selectedIndex = 0;
   final List<String> _pageTitles = [
     'Jal Rakshak',
-    'Water Bodies Map',
-    'Globe',
-    'All Water Bodies',
-    'Take Action',
+    'Monitor Water Bodies',
+    'Report Pollution',
+    'Join Campaign',
+    'View Stats',
   ];
-
-  // ====================== MAP (GANGA) ======================
-  static const LatLng _defaultIndiaCamera = LatLng(25.3176, 83.0107); // near Varanasi
-  static const double _defaultZoom = 5.4;
-
-  static const List<Map<String, dynamic>> _gangaConditionPoints = [
-    {"name": "Haridwar", "lat": 29.9457, "lng": 78.1642, "status": "Moderately Polluted"},
-    {"name": "Kanpur", "lat": 26.4499, "lng": 80.3319, "status": "Highly Polluted"},
-    {"name": "Prayagraj", "lat": 25.4358, "lng": 81.8463, "status": "Moderately Polluted"},
-    {"name": "Varanasi", "lat": 25.3176, "lng": 83.0107, "status": "Highly Polluted"},
-    {"name": "Patna", "lat": 25.5941, "lng": 85.1376, "status": "Moderately Polluted"},
-    {"name": "Kolkata", "lat": 22.5726, "lng": 88.3639, "status": "Moderately Polluted"},
-  ];
-
-  // Example “Jal Sankalpa Machines” point (edit lat/lng anytime)
-  static const LatLng _jalSankalpaMachine = LatLng(25.3220, 83.0050);
 
   // ====================== CLOCK & DATA ======================
   static const List<String> MESSAGES = [
@@ -153,6 +108,7 @@ class _NormalUserHomeState extends State<NormalUserHome> {
   static final DateTime TARGET_DATE = DateTime(2055, 1, 1);
   static const int POLLUTED_STRETCHES = 296;
 
+  // ignore: unused_field
   static const String _inspirationText = '''
 Why Jal Rakshak exists?
 
@@ -162,15 +118,18 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
 ''';
 
   // ====================== GEMINI API ======================
+  // ignore: unused_field
   static const String GEMINI_API_KEY = String.fromEnvironment(
     'GEMINI_API_KEY',
   );
   static const String GEMINI_MODEL = "gemini-1.5-flash-latest";
+  // ignore: unused_field
   static const List<String> _geminiModelFallbacks = <String>[
     GEMINI_MODEL,
     'gemini-2.0-flash',
     'gemini-1.5-pro',
   ];
+  // ignore: unused_field
   static const int _geminiMaxRetriesPerModel = 2;
   static const List<Map<String, dynamic>> _indiaRiverCatalog = [
     {
@@ -409,20 +368,18 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
 
   Future<void> _callGeminiForNearestRivers(double lat, double lng) async {
     try {
-      final nearest = _indiaRiverCatalog
-          .map((river) {
-            final riverLat = (river['lat'] as num).toDouble();
-            final riverLng = (river['lng'] as num).toDouble();
-            final distance = _haversineDistanceKm(lat, lng, riverLat, riverLng);
-            return {
-              "name": river['name'],
-              "distance_km": double.parse(distance.toStringAsFixed(1)),
-              "bod": river['bod'],
-              "status": river['status'],
-              "fact": river['fact'],
-            };
-          })
-          .toList()
+      final nearest = _indiaRiverCatalog.map((river) {
+        final riverLat = (river['lat'] as num).toDouble();
+        final riverLng = (river['lng'] as num).toDouble();
+        final distance = _haversineDistanceKm(lat, lng, riverLat, riverLng);
+        return {
+          "name": river['name'],
+          "distance_km": double.parse(distance.toStringAsFixed(1)),
+          "bod": river['bod'],
+          "status": river['status'],
+          "fact": river['fact'],
+        };
+      }).toList()
         ..sort((a, b) =>
             (a['distance_km'] as num).compareTo(b['distance_km'] as num));
 
@@ -515,318 +472,17 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
     );
   }
 
-  // ====================== PAGE BUILDERS ======================
-  Widget _buildMapPage() {
-    final markers = <Marker>{};
-    final polylinePoints = <LatLng>[];
-
-    for (final p in _gangaConditionPoints) {
-      final name = p["name"] as String;
-      final status = p["status"] as String;
-      final lat = (p["lat"] as num).toDouble();
-      final lng = (p["lng"] as num).toDouble();
-      final pos = LatLng(lat, lng);
-
-      markers.add(
-        Marker(
-          markerId: MarkerId('ganga_$name'),
-          position: pos,
-          infoWindow: InfoWindow(
-            title: 'Ganga • $name',
-            snippet: 'Condition: $status',
-          ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            status.contains('Highly')
-                ? BitmapDescriptor.hueRed
-                : status.contains('Moderately')
-                    ? BitmapDescriptor.hueOrange
-                    : BitmapDescriptor.hueGreen,
-          ),
-        ),
-      );
-      polylinePoints.add(pos);
-    }
-
-    // Jal Sankalpa Machines marker + 1km radius
-    markers.add(
-      const Marker(
-        markerId: MarkerId('jal_sankalpa_machine'),
-        position: _jalSankalpaMachine,
-        infoWindow: InfoWindow(
-          title: 'Jal Sankalpa Machines',
-          snippet: '1 km monitoring radius',
-        ),
-      ),
-    );
-
-    final circles = <Circle>{
-      Circle(
-        circleId: const CircleId('jal_sankalpa_1km'),
-        center: _jalSankalpaMachine,
-        radius: 1000, // meters
-        strokeWidth: 2,
-        strokeColor: const Color(0xFF0EA5E9),
-        fillColor: const Color(0xFF0EA5E9).withOpacity(0.14),
-      ),
-    };
-
-    final polylines = <Polyline>{
-      Polyline(
-        polylineId: const PolylineId('ganga_polyline'),
-        points: polylinePoints,
-        color: const Color(0xFF2563EB),
-        width: 5,
-      ),
-    };
-
-    final initialTarget = (_userPosition != null)
-        ? LatLng(_userPosition!.latitude, _userPosition!.longitude)
-        : _defaultIndiaCamera;
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Ganga River Map',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0A3D62),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _legendDot(const Color(0xFFEF4444), 'Highly'),
-                  _legendDot(const Color(0xFFF59E0B), 'Moderately'),
-                  _legendDot(const Color(0xFF22C55E), 'Clean'),
-                  _legendDot(const Color(0xFF0EA5E9), '1 km zone'),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: initialTarget,
-                zoom: _defaultZoom,
-              ),
-              markers: markers,
-              polylines: polylines,
-              circles: circles,
-              myLocationEnabled: true,
-              myLocationButtonEnabled: true,
-              compassEnabled: true,
-              mapToolbarEnabled: false,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _legendDot(Color color, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(color: Color(0x14000000), blurRadius: 10, offset: Offset(0, 6)),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAllRiversPage() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-            const Text('All Major Water Bodies of India',
-              style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0A3D62))),
-          const SizedBox(height: 24),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: RIVER_DATA.length,
-            itemBuilder: (context, i) {
-              final r = RIVER_DATA[i];
-              final color = r['status'].contains('Highly')
-                  ? Colors.red
-                  : r['status'].contains('Moderately')
-                      ? Colors.orange
-                      : Colors.green;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(22)),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(22),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => WaterBodyDetailScreen(
-                          name: r['name'].toString(),
-                          status: r['status'].toString(),
-                          bod: r['bod'].toString(),
-                          fact: r['fact'].toString(),
-                        ),
-                      ),
-                    );
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(r['name'],
-                                style: const TextStyle(
-                                    fontSize: 20, fontWeight: FontWeight.bold)),
-                            Chip(
-                                label: Text(r['status']),
-                                backgroundColor: color.withOpacity(0.15),
-                                labelStyle: TextStyle(color: color)),
-                          ],
-                        ),
-                        Text('BOD: ${r['bod']} mg/L',
-                            style: const TextStyle(color: Colors.grey)),
-                        const SizedBox(height: 12),
-                        Text(r['fact'], style: const TextStyle(height: 1.45)),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActPage() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Take Action Today',
-              style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0A3D62))),
-          const SizedBox(height: 24),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: 20,
-            crossAxisSpacing: 20,
-            children: [
-              _buildTappableQuickAction(
-                  'Monitor Water Bodies', Icons.map_outlined, Colors.blue, 0),
-              _buildTappableQuickAction(
-                  'Report Pollution',
-                  Icons.report_problem_outlined,
-                  Colors.red,
-                  1),
-              _buildTappableQuickAction(
-                  'Join Campaign',
-                  Icons.campaign_outlined,
-                  Colors.green,
-                  2),
-              _buildTappableQuickAction('View Stats', Icons.bar_chart_outlined,
-                  Colors.orange, 3),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTappableQuickAction(
-      String title, IconData icon, Color color, int initialTabIndex) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => WaterBodiesActionScreen(
-              initialTabIndex: initialTabIndex,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 42, color: color),
-            const SizedBox(height: 16),
-            Text(title,
-                style: TextStyle(
-                    fontSize: 17, fontWeight: FontWeight.bold, color: color),
-                textAlign: TextAlign.center),
-          ],
-        ),
-      ),
-    );
-  }
-
-
-
   Widget _quickActionCard(String title, IconData icon, Color color) {
     return GestureDetector(
       onTap: () {
         final tabMap = <String, int>{
-          'Monitor Water Bodies': 0,
-          'Report Pollution': 1,
-          'Join Campaign': 2,
-          'View Stats': 3,
+          'Monitor Water Bodies': 1,
+          'Report Pollution': 2,
+          'Join Campaign': 3,
+          'View Stats': 4,
         };
-        final initialTab = tabMap[title] ?? 0;
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => WaterBodiesActionScreen(initialTabIndex: initialTab),
-          ),
-        );
+        final idx = tabMap[title];
+        if (idx != null) setState(() => _selectedIndex = idx);
       },
       child: Container(
         decoration: BoxDecoration(
@@ -875,8 +531,8 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
       appBar: AppBar(
         backgroundColor: const Color(0xFF0A3D62),
         title: Text(_pageTitles[_selectedIndex],
-          style: const TextStyle(
-            fontWeight: FontWeight.bold, color: Colors.white)),
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, color: Colors.white)),
         centerTitle: true,
         actions: [
           IconButton(
@@ -958,8 +614,8 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white)),
                             const Text('Let’s revive India’s rivers together',
-                                style:
-                                    TextStyle(fontSize: 15, color: Colors.white70)),
+                                style: TextStyle(
+                                    fontSize: 15, color: Colors.white70)),
                           ],
                         ),
                       ),
@@ -1132,7 +788,8 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
                                             fontWeight: FontWeight.bold)),
                                     Chip(
                                         label: Text(r['status']),
-                                        backgroundColor: color.withOpacity(0.15)),
+                                        backgroundColor:
+                                            color.withOpacity(0.15)),
                                   ],
                                 ),
                                 Text(
@@ -1162,8 +819,8 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
                   crossAxisSpacing: 16,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
-                    _quickActionCard(
-                      'Monitor Water Bodies', Icons.map_outlined, Colors.blue),
+                    _quickActionCard('Monitor Water Bodies', Icons.map_outlined,
+                        Colors.blue),
                     _quickActionCard('Report Pollution',
                         Icons.report_problem_outlined, Colors.red),
                     _quickActionCard(
@@ -1176,11 +833,10 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
             ),
           ),
 
-          // Other Pages
-          _buildMapPage(),
-          const GlobeScreen(),
-          _buildAllRiversPage(),
-          _buildActPage(),
+          const MonitorWaterBodiesPage(),
+          const ReportPollutionPage(),
+          const JoinCampaignPage(),
+          const ViewStatsPage(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -1195,21 +851,21 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
               activeIcon: Icon(Icons.home),
               label: 'Home'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.map_outlined),
-              activeIcon: Icon(Icons.map),
-              label: 'Map'),
+              icon: Icon(Icons.monitor_heart_outlined),
+              activeIcon: Icon(Icons.monitor_heart),
+              label: 'Monitor'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.public_outlined),
-            activeIcon: Icon(Icons.public),
-            label: 'Globe'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.water_drop_outlined),
-              activeIcon: Icon(Icons.water_drop),
-              label: 'Water Bodies'),
+              icon: Icon(Icons.report_problem_outlined),
+              activeIcon: Icon(Icons.report_problem),
+              label: 'Report'),
           BottomNavigationBarItem(
               icon: Icon(Icons.campaign_outlined),
               activeIcon: Icon(Icons.campaign),
-              label: 'Act'),
+              label: 'Campaign'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.bar_chart_outlined),
+              activeIcon: Icon(Icons.bar_chart),
+              label: 'Stats'),
         ],
       ),
     );

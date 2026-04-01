@@ -4,6 +4,10 @@ import 'package:priject_jalrakshak/auth/auth_gate.dart';
 import 'package:priject_jalrakshak/screens/chatbot_screen.dart';
 import 'package:priject_jalrakshak/screens/globe_screen.dart';
 import 'package:priject_jalrakshak/screens/profile_screen.dart';
+import 'package:priject_jalrakshak/screens/user/join_campaign_screen.dart';
+import 'package:priject_jalrakshak/screens/user/monitor_water_bodies_screen.dart';
+import 'package:priject_jalrakshak/screens/user/report_pollution_screen.dart';
+import 'package:priject_jalrakshak/screens/user/view_stats_screen.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -19,6 +23,10 @@ class App extends StatelessWidget {
         '/chatbot': (context) => const ChatbotScreen(),
         '/globe': (context) => const GlobeScreen(),
         '/profile': (context) => const UserProfileScreen(),
+        '/monitor-water-bodies': (context) => const MonitorWaterBodiesScreen(),
+        '/report-pollution': (context) => const ReportPollutionScreen(),
+        '/join-campaign': (context) => const JoinCampaignScreen(),
+        '/view-stats': (context) => const ViewStatsScreen(),
       },
     );
   }

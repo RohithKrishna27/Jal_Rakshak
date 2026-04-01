@@ -37,6 +37,8 @@ dependencies:
   http: ^1.6.0
   geolocator: ^14.0.2
   google_maps_flutter: ^2.6.1
+  pdf: ^3.11.1
+  printing: ^5.13.3
   webview_flutter: ^4.13.0
 
   # The following adds the Cupertino Icons font to your application.

@@ -16,6 +16,7 @@ class PollutionPredictionScreen extends StatefulWidget {
 class _PollutionPredictionScreenState extends State<PollutionPredictionScreen> {
   final PredictionService _predictionService = PredictionService();
   final Set<Marker> _predictionMarkers = <Marker>{};
+  initialValue: _selectedIssueType,
 
   static const LatLng _defaultMapCenter = LatLng(22.9734, 78.6569);
   static const double _defaultMapZoom = 4.8;
