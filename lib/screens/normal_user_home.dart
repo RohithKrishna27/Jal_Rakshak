@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:priject_jalrakshak/screens/globe_screen.dart';
 import 'package:priject_jalrakshak/screens/water_bodies_action_screen.dart';
 import 'package:priject_jalrakshak/screens/water_body_detail_screen.dart';
 import 'package:priject_jalrakshak/screens/profile_screen.dart';
@@ -34,6 +35,7 @@ class MyApp extends StatelessWidget {
       home: const NormalUserHome(name: "User"), // Change name as needed
       routes: {
         '/profile': (context) => const UserProfileScreen(),
+        '/globe': (context) => const GlobeScreen(),
       },
     );
   }
@@ -68,6 +70,7 @@ class _NormalUserHomeState extends State<NormalUserHome> {
   final List<String> _pageTitles = [
     'Jal Rakshak',
     'Water Bodies Map',
+    'Globe',
     'All Water Bodies',
     'Take Action',
   ];
@@ -1175,6 +1178,7 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
 
           // Other Pages
           _buildMapPage(),
+          const GlobeScreen(),
           _buildAllRiversPage(),
           _buildActPage(),
         ],
@@ -1194,6 +1198,10 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
               icon: Icon(Icons.map_outlined),
               activeIcon: Icon(Icons.map),
               label: 'Map'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.public_outlined),
+            activeIcon: Icon(Icons.public),
+            label: 'Globe'),
           BottomNavigationBarItem(
               icon: Icon(Icons.water_drop_outlined),
               activeIcon: Icon(Icons.water_drop),

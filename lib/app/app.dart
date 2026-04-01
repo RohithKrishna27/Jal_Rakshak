@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:priject_jalrakshak/app/theme/app_theme.dart';
 import 'package:priject_jalrakshak/auth/auth_gate.dart';
 import 'package:priject_jalrakshak/screens/chatbot_screen.dart';
+import 'package:priject_jalrakshak/screens/globe_screen.dart';
 import 'package:priject_jalrakshak/screens/profile_screen.dart';
 
 class App extends StatelessWidget {
@@ -16,6 +17,7 @@ class App extends StatelessWidget {
       home: const AuthGate(),
       routes: {
         '/chatbot': (context) => const ChatbotScreen(),
+        '/globe': (context) => const GlobeScreen(),
         '/profile': (context) => const UserProfileScreen(),
       },
     );
