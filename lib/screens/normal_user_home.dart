@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
@@ -100,7 +101,6 @@ class _NormalUserHomeState extends State<NormalUserHome> {
   List<Map<String, dynamic>> _nearestRivers = [];
   bool _isLoadingLocation = false;
   bool _isLoadingRivers = false;
-  String? _locationError;
 
   // Bottom Navigation
   int _selectedIndex = 0;
@@ -200,10 +200,97 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
   // ====================== GEMINI API ======================
   static const String GEMINI_API_KEY = String.fromEnvironment(
     'GEMINI_API_KEY',
-    defaultValue: 'AIzaSyA1VW5oNK09KkUD4vhhT2AOLWJUIDmnnUU',
+    defaultValue: 'AIzaSyAk05m2Kfrt3qxWdKjZnrqKU51ZD1bPNRg',
   );
-  static const String GEMINI_MODEL =
-      "gemini-flash-latest"; // Fixed for 404 error
+  static const String GEMINI_MODEL = "gemini-1.5-flash-latest";
+  static const List<String> _geminiModelFallbacks = <String>[
+    GEMINI_MODEL,
+    'gemini-2.0-flash',
+    'gemini-1.5-pro',
+  ];
+  static const int _geminiMaxRetriesPerModel = 2;
+  static const List<Map<String, dynamic>> _indiaRiverCatalog = [
+    {
+      "name": "Ganga",
+      "lat": 25.3176,
+      "lng": 83.0107,
+      "bod": 5.8,
+      "status": "Highly Polluted",
+      "fact": "India's most sacred yet heavily polluted river."
+    },
+    {
+      "name": "Yamuna",
+      "lat": 28.6139,
+      "lng": 77.2090,
+      "bod": 8.2,
+      "status": "Severely Polluted",
+      "fact": "Suffering from massive urban sewage pollution."
+    },
+    {
+      "name": "Godavari",
+      "lat": 17.3850,
+      "lng": 78.4867,
+      "bod": 3.1,
+      "status": "Moderately Polluted",
+      "fact": "Important river of South India under stress."
+    },
+    {
+      "name": "Krishna",
+      "lat": 16.5062,
+      "lng": 80.6480,
+      "bod": 4.5,
+      "status": "Moderately Polluted",
+      "fact": "Major irrigation river with rising BOD levels."
+    },
+    {
+      "name": "Narmada",
+      "lat": 22.7196,
+      "lng": 75.8577,
+      "bod": 2.4,
+      "status": "Clean in stretches",
+      "fact": "One of the cleaner rivers, needs proactive protection."
+    },
+    {
+      "name": "Cauvery",
+      "lat": 11.0168,
+      "lng": 76.9558,
+      "bod": 3.8,
+      "status": "Moderately Polluted",
+      "fact": "Pressure from urban runoff and untreated waste."
+    },
+    {
+      "name": "Brahmaputra",
+      "lat": 26.1445,
+      "lng": 91.7362,
+      "bod": 2.1,
+      "status": "Clean in stretches",
+      "fact": "Mighty Himalayan river vital for Northeast India."
+    },
+    {
+      "name": "Mahanadi",
+      "lat": 20.2961,
+      "lng": 85.8245,
+      "bod": 4.2,
+      "status": "Moderately Polluted",
+      "fact": "Lifeline for irrigation across central-eastern India."
+    },
+    {
+      "name": "Sabarmati",
+      "lat": 23.0225,
+      "lng": 72.5714,
+      "bod": 5.1,
+      "status": "Highly Polluted",
+      "fact": "Urban corridor sections face heavy wastewater load."
+    },
+    {
+      "name": "Tapi",
+      "lat": 21.1702,
+      "lng": 72.8311,
+      "bod": 4.7,
+      "status": "Moderately Polluted",
+      "fact": "Industrial discharge remains a major concern."
+    },
+  ];
 
   Future<void> _logout() async {
     try {
@@ -271,7 +358,6 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
     setState(() {
       _isLoadingLocation = true;
       _isLoadingRivers = true;
-      _locationError = null;
       _locationName = null;
     });
 
@@ -304,7 +390,6 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
 
       await _callGeminiForNearestRivers(position.latitude, position.longitude);
     } catch (e) {
-      setState(() => _locationError = e.toString());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -360,93 +445,54 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
   }
 
   Future<void> _callGeminiForNearestRivers(double lat, double lng) async {
-    _nearestRivers.clear();
-
-    if (GEMINI_API_KEY.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Missing GEMINI_API_KEY. Run: flutter run --dart-define=GEMINI_API_KEY=YOUR_KEY',
-            ),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-      _loadFallbackRivers();
-      if (mounted) setState(() => _isLoadingRivers = false);
-      return;
-    }
-
-    final url = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/$GEMINI_MODEL:generateContent?key=$GEMINI_API_KEY',
-    );
-
-    final prompt = '''
-You are an expert on Indian rivers and real-time pollution data.
-User location: Latitude $lat, Longitude $lng (focus only on India).
-
-Return **only** a valid JSON array with maximum 5 nearest rivers. No extra text.
-
-Example format:
-[
-  {"name": "River Name", "distance_km": 12.5, "bod": 4.8, "status": "Highly Polluted", "fact": "Short impactful sentence."}
-]
-''';
-
     try {
-      final response = await http
-          .post(
-            url,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              "contents": [
-                {
-                  "parts": [
-                    {"text": prompt}
-                  ]
-                }
-              ],
-              "generationConfig": {
-                "response_mime_type": "application/json",
-                "temperature": 0.7,
-                "maxOutputTokens": 800,
-              }
-            }),
-          )
-          .timeout(const Duration(seconds: 20));
+      final nearest = _indiaRiverCatalog
+          .map((river) {
+            final riverLat = (river['lat'] as num).toDouble();
+            final riverLng = (river['lng'] as num).toDouble();
+            final distance = _haversineDistanceKm(lat, lng, riverLat, riverLng);
+            return {
+              "name": river['name'],
+              "distance_km": double.parse(distance.toStringAsFixed(1)),
+              "bod": river['bod'],
+              "status": river['status'],
+              "fact": river['fact'],
+            };
+          })
+          .toList()
+        ..sort((a, b) =>
+            (a['distance_km'] as num).compareTo(b['distance_km'] as num));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        String rawText =
-            data['candidates']?[0]?['content']?['parts']?[0]?['text'] ?? '';
-
-        rawText = rawText.trim();
-        if (rawText.contains('```')) {
-          rawText = rawText.split('```')[1].trim();
-          if (rawText.startsWith('json')) rawText = rawText.substring(4).trim();
-        }
-
-        final List<dynamic> parsed = jsonDecode(rawText);
-        setState(
-            () => _nearestRivers = List<Map<String, dynamic>>.from(parsed));
-      } else {
-        throw Exception('API Error: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Gemini Error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Using fallback river data'),
-              backgroundColor: Colors.orange),
-        );
-      }
+      if (!mounted) return;
+      setState(() => _nearestRivers = nearest.take(5).toList());
+    } catch (_) {
       _loadFallbackRivers();
     } finally {
-      setState(() => _isLoadingRivers = false);
+      if (mounted) {
+        setState(() => _isLoadingRivers = false);
+      }
     }
   }
+
+  double _haversineDistanceKm(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
+    const earthRadiusKm = 6371.0;
+    final dLat = _degToRad(lat2 - lat1);
+    final dLon = _degToRad(lon2 - lon1);
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_degToRad(lat1)) *
+            math.cos(_degToRad(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadiusKm * c;
+  }
+
+  double _degToRad(double degrees) => degrees * (math.pi / 180.0);
 
   void _loadFallbackRivers() {
     setState(() {
@@ -777,31 +823,7 @@ Example format:
     );
   }
 
-  Widget _buildInspirePage() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Why Inspired?',
-              style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0A3D62))),
-          const SizedBox(height: 24),
-          Card(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(_inspirationText,
-                  style: const TextStyle(fontSize: 16.5, height: 1.6)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _quickActionCard(String title, IconData icon, Color color) {
     return GestureDetector(
@@ -863,6 +885,13 @@ Example format:
             style: const TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
+          IconButton(
+            tooltip: 'Open chatbot',
+            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+            onPressed: () {
+              Navigator.pushNamed(context, '/chatbot');
+            },
+          ),
           PopupMenuButton<_HomeMenuAction>(
             icon: const Icon(Icons.more_vert, color: Colors.white),
             onSelected: (action) async {

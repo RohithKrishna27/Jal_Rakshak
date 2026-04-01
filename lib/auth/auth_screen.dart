@@ -48,16 +48,23 @@ class _AuthScreenState extends State<AuthScreen> {
           password: _passwordController.text.trim(),
         );
 
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(credential.user!.uid)
-            .get();
+        final user = credential.user;
+        if (user != null) {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
 
-        if (!userDoc.exists) {
-          throw FirebaseAuthException(
-            code: 'profile-not-found',
-            message: 'No user profile exists for this account.',
-          );
+          if (!userDoc.exists) {
+            await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+              'name': user.displayName?.trim().isNotEmpty == true
+                  ? user.displayName!.trim()
+                  : (user.email?.split('@').first ?? 'User'),
+              'email': user.email ?? _emailController.text.trim(),
+              'role': 'user',
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
         }
       } else {
         final credential =
@@ -80,9 +87,9 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() {
         _error = _mapAuthError(e);
       });
-    } catch (_) {
+    } catch (error) {
       setState(() {
-        _error = 'Something went wrong. Please try again.';
+        _error = _mapGenericError(error);
       });
     } finally {
       if (mounted) {
@@ -105,11 +112,24 @@ class _AuthScreenState extends State<AuthScreen> {
         return 'This email is already registered. Please log in.';
       case 'weak-password':
         return 'Password should be at least 6 characters.';
-      case 'profile-not-found':
-        return 'Account exists, but role profile is missing. Sign up again.';
       default:
         return e.message ?? 'Authentication failed.';
     }
+  }
+
+  String _mapGenericError(Object error) {
+    if (error is FirebaseException) {
+      switch (error.code) {
+        case 'permission-denied':
+          return 'Firestore access is denied. Check Firestore rules and API enablement in Firebase console.';
+        case 'failed-precondition':
+          return 'Firestore is not ready for this project. Enable Cloud Firestore API and try again in a few minutes.';
+        case 'unavailable':
+          return 'Firestore is temporarily unavailable. Please try again shortly.';
+      }
+      return error.message ?? 'A Firebase error occurred.';
+    }
+    return 'Something went wrong. Please try again.';
   }
 
   @override

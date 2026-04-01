@@ -19,6 +19,14 @@ class RoleBasedRouter extends StatelessWidget {
           return const LoadingScreen();
         }
 
+        if (snapshot.hasError) {
+          final message = snapshot.error is FirebaseException
+              ? (snapshot.error as FirebaseException).message ??
+                  'Unable to load your profile.'
+              : 'Unable to load your profile.';
+          return AuthScreen(infoMessage: message);
+        }
+
         if (!snapshot.hasData || !snapshot.data!.exists) {
           return const AuthScreen(
             infoMessage:
