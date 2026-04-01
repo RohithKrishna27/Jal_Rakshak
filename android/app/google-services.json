@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "396257290892",
+    "project_id": "jal-rakshak-5ddf2",
+    "storage_bucket": "jal-rakshak-5ddf2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:396257290892:android:969a0d8a83223e0ae1e9a9",
+        "android_client_info": {
+          "package_name": "com.example.priject_jalrakshak"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUi_51jJtP2HkkuywijyI-fNUnM5WY_Tg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
