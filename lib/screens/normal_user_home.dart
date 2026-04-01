@@ -200,7 +200,6 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
   // ====================== GEMINI API ======================
   static const String GEMINI_API_KEY = String.fromEnvironment(
     'GEMINI_API_KEY',
-    defaultValue: 'AIzaSyAk05m2Kfrt3qxWdKjZnrqKU51ZD1bPNRg',
   );
   static const String GEMINI_MODEL = "gemini-1.5-flash-latest";
   static const List<String> _geminiModelFallbacks = <String>[
