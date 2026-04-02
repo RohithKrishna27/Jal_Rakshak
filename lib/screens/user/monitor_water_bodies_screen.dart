@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -8,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:priject_jalrakshak/utils/save_jal_pdf.dart';
 
 // ============================================================
 // MODELS
@@ -921,31 +920,6 @@ Be specific, data-driven, and actionable. Use clear bullet points and data refer
   String _healthWord(WaterHealthStatus s) =>
       s.toString().split('.').last.toUpperCase();
 
-  /// Share/save PDF: [share_plus] works reliably on Android 11+ when manifest
-  /// `<queries>` includes SEND; [Printing.sharePdf] is the fallback.
-  Future<void> _sharePdfBytes(Uint8List bytes, String filename) async {
-    if (kIsWeb) {
-      await Printing.sharePdf(bytes: bytes, filename: filename);
-      return;
-    }
-    try {
-      final xfile = XFile.fromData(
-        bytes,
-        mimeType: 'application/pdf',
-        name: filename,
-      );
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [xfile],
-          subject: 'Jal Rakshak - Water quality report',
-          text: 'Water quality report (PDF)',
-        ),
-      );
-    } catch (_) {
-      await Printing.sharePdf(bytes: bytes, filename: filename);
-    }
-  }
-
   Future<void> _generatePDFReport() async {
     if (_activeRiver.isEmpty) {
       if (!mounted) return;
@@ -1176,17 +1150,32 @@ Be specific, data-driven, and actionable. Use clear bullet points and data refer
       final suffix = focus != null ? '_${_pdfSafe(focus.id).replaceAll(RegExp(r'[^\w\-]+'), '_')}' : '_all_stations';
       final filename = 'Jal_Rakshak_${safeRiver}$suffix.pdf';
       if (!mounted) return;
+
+      if (kIsWeb) {
+        await Printing.sharePdf(bytes: bytes, filename: filename);
+        return;
+      }
+
+      final path = await saveJalPdfToLocalStorage(bytes, filename);
+      try {
+        await openJalLocalPdf(path);
+      } catch (_) {
+        // No PDF app or open failed; file is still on disk.
+      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Opening share sheet - pick Files, Drive, or Save to download.'),
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: Text(
+            'PDF saved.\n$path',
+            style: const TextStyle(fontSize: 12),
+          ),
+          duration: const Duration(seconds: 8),
         ),
       );
-      await _sharePdfBytes(bytes, filename);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not export PDF: $e')),
+        SnackBar(content: Text('Could not save PDF: $e')),
       );
     }
   }
