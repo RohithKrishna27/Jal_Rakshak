@@ -503,19 +503,30 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
   }
 
   Widget _allRiversPreview() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: RIVER_DATA
-          .map((r) => Column(
-                children: [
-                  const Icon(Icons.water_drop, color: Colors.white70),
-                  const SizedBox(height: 6),
-                  Text(r['name'],
-                      style:
-                          const TextStyle(color: Colors.white70, fontSize: 13)),
-                ],
-              ))
-          .toList(),
+    return SizedBox(
+      height: 64,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: RIVER_DATA.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        itemBuilder: (context, i) {
+          final r = RIVER_DATA[i];
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.water_drop, color: Colors.white70, size: 22),
+              const SizedBox(height: 4),
+              Text(
+                r['name'] as String,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -641,29 +652,51 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
                   child: Column(
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const Row(children: [
-                            Icon(Icons.water_drop,
-                                color: Colors.white, size: 46),
-                            SizedBox(width: 14),
-                            Text('RIVER REVIVAL CLOCK',
-                                style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white))
-                          ]),
+                          const Icon(Icons.water_drop,
+                              color: Colors.white, size: 40),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'RIVER REVIVAL CLOCK',
+                              style: TextStyle(
+                                fontSize: MediaQuery.sizeOf(context).width < 360
+                                    ? 17
+                                    : 20,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                           IconButton(
-                              icon: const Icon(Icons.info_outline,
-                                  color: Colors.white),
-                              onPressed: _showWhyClockDialog),
+                            constraints: const BoxConstraints(
+                              minWidth: 40,
+                              minHeight: 40,
+                            ),
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.info_outline,
+                                color: Colors.white, size: 22),
+                            onPressed: _showWhyClockDialog,
+                          ),
                         ],
                       ),
-                      Text(_countdown,
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.center,
+                        child: Text(
+                          _countdown,
                           style: const TextStyle(
-                              fontSize: 56,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white)),
+                            fontSize: 56,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Text('until 2055 • Healthy Rivers Mission',
                           style: const TextStyle(
@@ -710,25 +743,55 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
                 const SizedBox(height: 36),
 
                 // Nearest Water Bodies
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Nearest Water Bodies to You',
-                        style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0A3D62))),
-                    ElevatedButton.icon(
+                LayoutBuilder(
+                  builder: (context, c) {
+                    final narrow = c.maxWidth < 340;
+                    final title = Text(
+                      'Nearest Water Bodies to You',
+                      style: TextStyle(
+                        fontSize: narrow ? 18 : 22,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF0A3D62),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    );
+                    final btn = ElevatedButton.icon(
                       onPressed: (_isLoadingLocation || _isLoadingRivers)
                           ? null
                           : _getLocationAndNearestRivers,
-                      icon: const Icon(Icons.my_location),
+                      icon: const Icon(Icons.my_location, size: 20),
                       label: const Text('Refresh'),
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF00BFFF),
-                          foregroundColor: Colors.white),
-                    ),
-                  ],
+                        backgroundColor: const Color(0xFF00BFFF),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    );
+                    if (narrow) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          title,
+                          const SizedBox(height: 10),
+                          Align(alignment: Alignment.centerLeft, child: btn),
+                        ],
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: title),
+                        const SizedBox(width: 8),
+                        btn,
+                      ],
+                    );
+                  },
                 ),
 
                 if (_userPosition != null)
@@ -843,6 +906,9 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
         type: BottomNavigationBarType.fixed,
         selectedItemColor: const Color(0xFF0A3D62),
         unselectedItemColor: Colors.grey,
+        selectedFontSize: 10.5,
+        unselectedFontSize: 9.5,
+        iconSize: 22,
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
         items: const [
@@ -861,7 +927,7 @@ This app is your daily reminder and action hub: learn, monitor, report pollution
           BottomNavigationBarItem(
               icon: Icon(Icons.campaign_outlined),
               activeIcon: Icon(Icons.campaign),
-              label: 'Campaign'),
+              label: 'Join'),
           BottomNavigationBarItem(
               icon: Icon(Icons.bar_chart_outlined),
               activeIcon: Icon(Icons.bar_chart),

@@ -66,6 +66,7 @@ class UserScreenWelcome extends StatelessWidget {
                     height: 1.45,
                     fontSize: 14,
                   ),
+                  softWrap: true,
                 ),
               ],
             ),

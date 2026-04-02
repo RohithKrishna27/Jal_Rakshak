@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:priject_jalrakshak/services/pollution_report_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -33,6 +34,8 @@ class _IndustryComplaintRow {
     required this.status,
     required this.openedAt,
     required this.summary,
+    required this.raisedBy,
+    required this.trigger,
   });
 
   final String id;
@@ -40,6 +43,12 @@ class _IndustryComplaintRow {
   final String status;
   final String openedAt;
   final String summary;
+
+  /// Who opened the ticket (e.g. citizen via app vs system from sensors).
+  final String raisedBy;
+
+  /// Why it was raised (e.g. over-pollution / threshold vs user observation).
+  final String trigger;
 }
 
 class _IndustryPortalScreenState extends State<IndustryPortalScreen>
@@ -80,21 +89,40 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
       title: 'Odour & effluent discharge (night hours)',
       status: 'In review',
       openedAt: '12 Mar 2026',
-      summary: 'Community report within 1.2 km of registered coordinates.',
+      raisedBy: 'Normal user (Jal Rakshak app)',
+      trigger: 'Citizen report near your facility',
+      summary:
+          'A resident filed a pollution report from the “Report pollution” flow, ~1.2 km from your registered coordinates, citing smell and suspected night discharge.',
     ),
     _IndustryComplaintRow(
       id: 'CMP-2388',
-      title: 'Foam observed near storm drain outfall',
+      title: 'Foam & colour in drain line (storm outfall)',
       status: 'Action required',
       openedAt: '28 Feb 2026',
-      summary: 'Linked to monsoon overflow; CPCB format response due.',
+      raisedBy: 'Normal user + field photo',
+      trigger: 'Visual pollution / drainage concern',
+      summary:
+          'Community user uploaded photos of foam and discoloration after rain; ticket auto-linked to nearest river buffer. Not yet attributed to a single outlet.',
+    ),
+    _IndustryComplaintRow(
+      id: 'CMP-2395',
+      title: 'IoT node: BOD / turbidity spike downstream',
+      status: 'In review',
+      openedAt: '5 Mar 2026',
+      raisedBy: 'System (monitoring network)',
+      trigger: 'Over-pollution / threshold breach',
+      summary:
+          'Nearest river IoT node logged elevated BOD and turbidity in the 48h window after your sector’s discharge window — flag for correlation review (demo linkage).',
     ),
     _IndustryComplaintRow(
       id: 'CMP-2355',
-      title: 'BOD sampling follow-up (quarterly)',
+      title: 'Quarterly BOD sampling — compliance closure',
       status: 'Resolved',
       openedAt: '15 Jan 2026',
-      summary: 'Lab reports uploaded; compliance letter issued.',
+      raisedBy: 'Regulator / PCB follow-up',
+      trigger: 'Scheduled compliance check',
+      summary:
+          'Lab reports uploaded; no breach confirmed at sampling point; complaint closed with compliance letter on file.',
     ),
   ];
 
@@ -594,13 +622,79 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
         Text(
           'Complaints linked to ${_companyName.text.isEmpty ? args.adminDisplayName : _companyName.text}',
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 8),
         const Text(
-          'Demo queue — replace with Firestore `industry_complaints` or backend later.',
-          style: TextStyle(fontSize: 13, color: Colors.black54),
+          'Citizen reports below come from normal users (Report Pollution): photo, suspected company, address, waste type and description. Other cards are demo system / regulator tickets.',
+          style: TextStyle(fontSize: 13, color: Colors.black87, height: 1.35),
+          softWrap: true,
         ),
         const SizedBox(height: 16),
+        Text(
+          'Citizen reports (live)',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: Colors.blue.shade900,
+          ),
+        ),
+        const SizedBox(height: 10),
+        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: PollutionReportService.reportsStream(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasError) {
+              return Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(
+                  'Could not load citizen reports. In Firebase Console, allow authenticated read/write on `pollution_reports` and Storage path `pollution_reports/`.\n${snapshot.error}',
+                  style: const TextStyle(color: Colors.red, fontSize: 13),
+                  softWrap: true,
+                ),
+              );
+            }
+            final docs = snapshot.data?.docs ?? [];
+            if (docs.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'No citizen reports yet. When users submit from Report Pollution, they appear here with photo and details.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                ),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: docs
+                  .map(
+                    (d) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _citizenReportCard(d),
+                    ),
+                  )
+                  .toList(),
+            );
+          },
+        ),
+        const SizedBox(height: 28),
+        const Divider(thickness: 2),
+        const SizedBox(height: 12),
+        Text(
+          'Other tickets (demo)',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: Colors.grey.shade800,
+          ),
+        ),
+        const SizedBox(height: 12),
         ..._complaintsDemo.map(
           (c) => Card(
             margin: const EdgeInsets.only(bottom: 12),
@@ -609,28 +703,202 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Text(
+                    c.title,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Expanded(
-                        child: Text(
-                          c.title,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                        ),
-                      ),
                       _statusChip(c.status),
+                      _complaintMetaChip(Icons.person_outline, 'Raised by', c.raisedBy),
+                      _complaintMetaChip(Icons.bubble_chart_outlined, 'Trigger', c.trigger),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  Text('${c.id} • Opened ${c.openedAt}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                   const SizedBox(height: 8),
-                  Text(c.summary, style: const TextStyle(fontSize: 14)),
+                  Text(
+                    '${c.id} • Opened ${c.openedAt}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    softWrap: true,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    c.summary,
+                    style: const TextStyle(fontSize: 14, height: 1.4),
+                    softWrap: true,
+                  ),
                 ],
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  String _formatReportTime(dynamic raw) {
+    if (raw is Timestamp) {
+      final d = raw.toDate();
+      return '${d.day}/${d.month}/${d.year}, ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    }
+    return '—';
+  }
+
+  Widget _citizenReportCard(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    final d = doc.data();
+    final company = (d['suspectedCompanyName'] as String?)?.trim() ?? '—';
+    final address = (d['companyAddress'] as String?)?.trim() ?? '—';
+    final waste = (d['wasteType'] as String?)?.trim() ?? '—';
+    final water = (d['waterBody'] as String?)?.trim() ?? '';
+    final notes = (d['locationNotes'] as String?)?.trim() ?? '';
+    final desc = (d['description'] as String?)?.trim() ?? '—';
+    final photoUrl = d['photoUrl'] as String?;
+    final status = (d['status'] as String?) ?? 'submitted';
+    final registered = _companyName.text.trim().toLowerCase();
+    final possibleMatch = registered.isNotEmpty &&
+        company.toLowerCase().contains(registered);
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      elevation: 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (photoUrl != null && photoUrl.isNotEmpty)
+            Image.network(
+              photoUrl,
+              height: 200,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return SizedBox(
+                  height: 200,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  ),
+                );
+              },
+              errorBuilder: (_, __, ___) => Container(
+                height: 120,
+                color: Colors.grey.shade300,
+                child: const Center(child: Icon(Icons.broken_image_outlined, size: 48)),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  company,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _statusChip(_mapCitizenStatus(status)),
+                    if (possibleMatch)
+                      Chip(
+                        label: const Text('Name match', style: TextStyle(fontSize: 11)),
+                        backgroundColor: Colors.amber.shade100,
+                        padding: EdgeInsets.zero,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    _complaintMetaChip(Icons.factory_outlined, 'Address', address),
+                    _complaintMetaChip(Icons.delete_outline, 'Waste type', waste),
+                    if (water.isNotEmpty)
+                      _complaintMetaChip(Icons.water, 'Water body', water),
+                  ],
+                ),
+                if (notes.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Location notes: $notes',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
+                    softWrap: true,
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Text(
+                  desc,
+                  style: const TextStyle(fontSize: 14, height: 1.4),
+                  softWrap: true,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'ID ${doc.id} • ${_formatReportTime(d['createdAt'])} • Normal user report',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  softWrap: true,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _mapCitizenStatus(String s) {
+    switch (s) {
+      case 'submitted':
+        return 'In review';
+      case 'resolved':
+        return 'Resolved';
+      case 'action_required':
+        return 'Action required';
+      default:
+        return s.replaceAll('_', ' ');
+    }
+  }
+
+  Widget _complaintMetaChip(IconData icon, String label, String value) {
+    return Builder(
+      builder: (context) {
+        final maxW = (MediaQuery.sizeOf(context).width - 48).clamp(120.0, 320.0);
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxW),
+          child: Chip(
+            avatar: Icon(icon, size: 18, color: const Color(0xFF4C1D95)),
+            label: Text(
+              '$label: $value',
+              style: const TextStyle(fontSize: 11.5, height: 1.25),
+              maxLines: 5,
+              overflow: TextOverflow.ellipsis,
+              softWrap: true,
+            ),
+            backgroundColor: const Color(0xFFF1F5F9),
+            side: BorderSide(color: Colors.purple.shade100),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        );
+      },
     );
   }
 
@@ -642,9 +910,15 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
       _ => Colors.blueGrey,
     };
     return Chip(
-      label: Text(status, style: const TextStyle(fontSize: 12, color: Colors.white)),
+      label: Text(
+        status,
+        style: const TextStyle(fontSize: 11, color: Colors.white),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        softWrap: true,
+      ),
       backgroundColor: color,
-      padding: EdgeInsets.zero,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }

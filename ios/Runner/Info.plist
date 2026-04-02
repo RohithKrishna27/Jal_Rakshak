@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Take photos of pollution to attach to your report.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a photo of pollution to attach to your report.</string>
 </dict>
 </plist>

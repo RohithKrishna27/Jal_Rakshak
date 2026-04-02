@@ -352,6 +352,9 @@ Return ONLY valid JSON (no extra text):
         selectedItemColor: const Color(0xFF0A3D62),
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
+        selectedFontSize: 10.5,
+        unselectedFontSize: 9.5,
+        iconSize: 22,
         currentIndex: _bottomNavIndex,
         onTap: (i) => setState(() => _bottomNavIndex = i),
         items: const [
@@ -368,12 +371,12 @@ Return ONLY valid JSON (no extra text):
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment_turned_in_outlined),
             activeIcon: Icon(Icons.assignment_turned_in),
-            label: 'Compliance',
+            label: 'Comply',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.feedback_outlined),
             activeIcon: Icon(Icons.feedback),
-            label: 'Feedback',
+            label: 'Reports',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.security_outlined),
@@ -435,22 +438,40 @@ Return ONLY valid JSON (no extra text):
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.water_drop, color: Colors.white, size: 42),
-                      SizedBox(width: 12),
-                      Text('RIVER REVIVAL CLOCK',
+                    children: [
+                      const Icon(Icons.water_drop, color: Colors.white, size: 38),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          'RIVER REVIVAL CLOCK',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white)),
+                            fontSize: MediaQuery.sizeOf(context).width < 360
+                                ? 16
+                                : 20,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Text(_countdown,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      _countdown,
                       style: const TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white)),
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   const Text('until 2055 • Healthy Rivers Mission',
                       style: TextStyle(fontSize: 16, color: Colors.white70)),
@@ -579,7 +600,7 @@ Return ONLY valid JSON (no extra text):
         ),
         const SizedBox(height: 10),
         SizedBox(
-          height: 96,
+          height: 118,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: RIVER_DATA.length,
@@ -602,8 +623,8 @@ Return ONLY valid JSON (no extra text):
                       : const Color(0xFF0F5B2E);
 
               return Container(
-                width: 210,
-                padding: const EdgeInsets.all(12),
+                width: 200,
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.14),
                   borderRadius: BorderRadius.circular(16),
@@ -611,6 +632,8 @@ Return ONLY valid JSON (no extra text):
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisSize: MainAxisSize.max,
                   children: [
                     Row(
                       children: [
@@ -621,20 +644,24 @@ Return ONLY valid JSON (no extra text):
                             '${river['name']}',
                             style: const TextStyle(
                                 color: Colors.white, fontWeight: FontWeight.w800),
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
                       'BOD ${river['bod']} mg/L',
                       style: const TextStyle(
-                          color: Colors.white70, fontWeight: FontWeight.w600),
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13),
                     ),
-                    const Spacer(),
+                    const SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                       decoration: BoxDecoration(
                         color: chipColor,
                         borderRadius: BorderRadius.circular(999),
@@ -644,8 +671,10 @@ Return ONLY valid JSON (no extra text):
                         style: TextStyle(
                             color: textColor,
                             fontWeight: FontWeight.w800,
-                            fontSize: 12),
+                            fontSize: 11),
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ],
