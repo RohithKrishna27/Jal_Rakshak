@@ -20,7 +20,7 @@ class OllamaChatException implements Exception {
 class OllamaChatService {
   OllamaChatService({
     http.Client? client,
-    this.baseUrl = 'http://10.226.161.191:11434',
+    this.baseUrl = 'http://10.62.88.191:11434',
     this.model = 'gpt-oss:120b-cloud',
   }) : _client = client ?? http.Client();
 
