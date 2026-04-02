@@ -1,10 +1,14 @@
 import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 
 // ============================================================
 // MODELS
@@ -895,82 +899,296 @@ Be specific, data-driven, and actionable. Use clear bullet points and data refer
   }
 
   // ── PDF Report ────────────────────────────────────────────
+  // Default PDF fonts only cover basic Latin; strip emoji/Unicode from API text.
+
+  String _pdfSafe(String? s) {
+    if (s == null || s.isEmpty) return '';
+    return String.fromCharCodes(
+      s.runes.where((r) => r == 0x0A || r == 0x0D || (r >= 32 && r <= 126)),
+    );
+  }
+
+  WaterHealthStatus _worstStatusInRiver(List<IoTNode> nodes) {
+    var w = WaterHealthStatus.good;
+    for (final n in nodes) {
+      final h = n.data.getHealthStatus();
+      if (h == WaterHealthStatus.critical) return WaterHealthStatus.critical;
+      if (h == WaterHealthStatus.warning) w = WaterHealthStatus.warning;
+    }
+    return w;
+  }
+
+  String _healthWord(WaterHealthStatus s) =>
+      s.toString().split('.').last.toUpperCase();
+
+  /// Share/save PDF: [share_plus] works reliably on Android 11+ when manifest
+  /// `<queries>` includes SEND; [Printing.sharePdf] is the fallback.
+  Future<void> _sharePdfBytes(Uint8List bytes, String filename) async {
+    if (kIsWeb) {
+      await Printing.sharePdf(bytes: bytes, filename: filename);
+      return;
+    }
+    try {
+      final xfile = XFile.fromData(
+        bytes,
+        mimeType: 'application/pdf',
+        name: filename,
+      );
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [xfile],
+          subject: 'Jal Rakshak - Water quality report',
+          text: 'Water quality report (PDF)',
+        ),
+      );
+    } catch (_) {
+      await Printing.sharePdf(bytes: bytes, filename: filename);
+    }
+  }
 
   Future<void> _generatePDFReport() async {
-    if (_selectedNode == null) return;
+    if (_activeRiver.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a river first.')),
+      );
+      return;
+    }
+
     final pdf = pw.Document();
-    final node = _selectedNode!;
+    final riverNodes = _activeNodes;
+    final focus = _selectedNode;
+
+    final networkRows = <List<String>>[];
+    final riverNames = _allRiverNodes.keys.toList()..sort();
+    for (final name in riverNames) {
+      final list = _allRiverNodes[name] ?? [];
+      if (list.isEmpty) continue;
+      final worst = _worstStatusInRiver(list);
+      networkRows.add([
+        _pdfSafe(name),
+        '${list.length}',
+        _healthWord(worst),
+      ]);
+    }
+
+    final allStationsRows = <List<String>>[];
+    for (final name in riverNames) {
+      final list = _allRiverNodes[name] ?? [];
+      for (final n in list) {
+        final h = n.data.getHealthStatus();
+        allStationsRows.add([
+          _pdfSafe(name),
+          _pdfSafe(n.id),
+          _healthWord(h),
+          n.data.dissolvedOxygen.toStringAsFixed(1),
+          n.data.pH.toStringAsFixed(1),
+          n.data.nitrogen.toStringAsFixed(1),
+          n.data.phosphorus.toStringAsFixed(3),
+          n.data.potassium.toStringAsFixed(1),
+          n.data.turbidity.toStringAsFixed(0),
+          n.data.bod.toStringAsFixed(1),
+          n.data.conductivity.toStringAsFixed(0),
+          n.data.heavyMetals.toStringAsFixed(1),
+          n.data.coliformCount.toStringAsFixed(0),
+          n.data.temperature.toStringAsFixed(1),
+          n.data.moisture.toStringAsFixed(0),
+          n.location.latitude.toStringAsFixed(4),
+          n.location.longitude.toStringAsFixed(4),
+        ]);
+      }
+    }
+
+    final pseudoIndustries = pseudoFactoryData[_activeRiver] ?? [];
 
     pdf.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
-      build: (pw.Context context) => [
-        pw.Header(
-          level: 0,
-          child: pw.Text('Jal Rakshak – Comprehensive Water Quality Report',
-              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-        ),
-        pw.SizedBox(height: 10),
-        pw.Text('River: ${node.riverName}  |  Station: ${node.id}  |  Status: ${node.data.getHealthStatus().toString().split('.').last.toUpperCase()}',
-            style: pw.TextStyle(fontSize: 13)),
-        pw.Text('Location: ${node.location.latitude.toStringAsFixed(4)}°N, ${node.location.longitude.toStringAsFixed(4)}°E'),
-        pw.Text('Generated: ${DateTime.now().toString().split('.')[0]}'),
-        pw.Divider(),
-        pw.Header(level: 1, child: pw.Text('Water Quality Parameters')),
-        pw.Table.fromTextArray(
-          headers: ['Parameter', 'Value', 'Unit', 'Status', 'Safe Range'],
-          data: [
-            ['Nitrogen', '${node.data.nitrogen}', 'mg/L',    _paramStatus(node.data.nitrogen, 5.0, 10.0),    '<5 good, >10 critical'],
-            ['Phosphorus', '${node.data.phosphorus}', 'mg/L', _paramStatus(node.data.phosphorus, 0.05, 0.1), '<0.05 good, >0.1 critical'],
-            ['Potassium', '${node.data.potassium}', 'mg/L',  'Normal',                                        '1–5 mg/L'],
-            ['Dissolved O₂', '${node.data.dissolvedOxygen}', 'mg/L', _paramStatusRev(node.data.dissolvedOxygen, 6.0, 4.0), '>6 good, <4 critical'],
-            ['Temperature', '${node.data.temperature}', '°C', 'Normal',                                       '20–30°C'],
-            ['pH', '${node.data.pH}', '',                    _phStatus(node.data.pH),                         '6.5–8.5'],
-            ['Turbidity', '${node.data.turbidity}', 'NTU',   _paramStatus(node.data.turbidity, 25.0, 50.0),  '<25 good, >50 critical'],
-            ['BOD', '${node.data.bod}', 'mg/L',              _paramStatus(node.data.bod, 3.0, 6.0),           '<3 good, >6 critical'],
-            ['Conductivity', '${node.data.conductivity}', 'µS/cm', _paramStatus(node.data.conductivity, 500, 800), '<500 good'],
-            ['Heavy Metals', '${node.data.heavyMetals}', '/10', _paramStatus(node.data.heavyMetals, 2.5, 5.0), '<2.5 good'],
-            ['Coliform', '${node.data.coliformCount}', 'CFU/100mL', _paramStatus(node.data.coliformCount, 500, 1000), '<500 safe'],
-          ],
-        ),
-        pw.SizedBox(height: 12),
-        pw.Header(level: 1, child: pw.Text('Nearby Industrial Areas')),
-        ...node.nearbyFactories.map((f) => pw.Bullet(text: f)),
-        if (_factoryAnalysis != null) ...[
+      margin: const pw.EdgeInsets.all(40),
+      build: (pw.Context context) {
+        final children = <pw.Widget>[
+          pw.Header(
+            level: 0,
+            child: pw.Text(
+              'Jal Rakshak - Water Quality Report',
+              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 6),
+          pw.Text(
+            'Active river: ${_pdfSafe(_activeRiver)}  |  Stations on map: ${riverNodes.length}  |  Generated: ${DateTime.now().toString().split('.')[0]}',
+            style: const pw.TextStyle(fontSize: 10),
+          ),
+          if (focus != null)
+            pw.Text(
+              'Focus station (detail below): ${_pdfSafe(focus.id)}',
+              style: const pw.TextStyle(fontSize: 10),
+            ),
+          pw.Divider(),
+          pw.Header(level: 1, child: pw.Text('1. All rivers - network overview')),
+          pw.Text(
+            'Worst-case health status among IoT nodes per river (GOOD / WARNING / CRITICAL).',
+            style: const pw.TextStyle(fontSize: 9),
+          ),
+          pw.SizedBox(height: 6),
+          pw.Table.fromTextArray(
+            headers: ['River', 'Stations', 'Worst status'],
+            data: networkRows,
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+          ),
+          pw.SizedBox(height: 14),
+          pw.Header(
+            level: 1,
+            child: pw.Text('2. All rivers - every monitoring station (key parameters)'),
+          ),
+          pw.Text(
+            'One row per IoT station across the network. Columns: river, station ID, status, DO (mg/L), pH, N, P, K (mg/L), turbidity (NTU), BOD, conductivity (uS/cm), heavy metals index, coliform, temp (C), moisture (%), latitude, longitude.',
+            style: const pw.TextStyle(fontSize: 8),
+          ),
+          pw.SizedBox(height: 6),
+          pw.Table.fromTextArray(
+            headers: [
+              'River',
+              'Station',
+              'Status',
+              'DO',
+              'pH',
+              'N',
+              'P',
+              'K',
+              'Turb',
+              'BOD',
+              'Cond',
+              'HM',
+              'Coli',
+              'Temp',
+              'Moist',
+              'Lat',
+              'Lon',
+            ],
+            data: allStationsRows,
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 6),
+            cellStyle: const pw.TextStyle(fontSize: 6),
+          ),
           pw.SizedBox(height: 12),
-          pw.Header(level: 1, child: pw.Text('Pollution Source Analysis')),
-          pw.Text('Primary Polluters:'),
-          ...(_factoryAnalysis!['primaryPolluters'] as List).map((p) => pw.Bullet(text: p.toString())),
-          pw.SizedBox(height: 8),
-          pw.Text('Pollution Types Detected:'),
-          ...(_factoryAnalysis!['pollutionTypes'] as List).map((p) => pw.Bullet(text: p.toString())),
-        ],
-        pw.SizedBox(height: 12),
-        pw.Header(level: 1, child: pw.Text('Correlation Insights')),
-        ...node.data.getCorrelations().map((c) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text('${c.title} (${c.paramA} ↔ ${c.paramB})',
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            pw.Text(c.description),
-            pw.Text('Action: ${c.action}'),
+          pw.Header(level: 1, child: pw.Text('3. Typical industrial / risk context (${_pdfSafe(_activeRiver)})')),
+          ...pseudoIndustries.map((f) => pw.Bullet(text: _pdfSafe(f))),
+        ];
+
+        if (focus != null) {
+          final node = focus;
+          children.addAll([
+            pw.SizedBox(height: 14),
+            pw.Header(
+              level: 1,
+              child: pw.Text('4. Station detail - ${_pdfSafe(node.id)}'),
+            ),
+            pw.Text(
+              'Health: ${_healthWord(node.data.getHealthStatus())}  |  Location: ${node.location.latitude.toStringAsFixed(4)} N, ${node.location.longitude.toStringAsFixed(4)} E',
+              style: const pw.TextStyle(fontSize: 10),
+            ),
             pw.SizedBox(height: 8),
-          ],
-        )),
-        pw.SizedBox(height: 12),
-        pw.Header(level: 1, child: pw.Text('AI Deep Analysis')),
-        pw.Text(_aiAnalysis ?? 'Analysis not available.'),
-        pw.SizedBox(height: 12),
-        pw.Header(level: 1, child: pw.Text('Recommended Actions')),
-        pw.Bullet(text: 'Do not use river water for drinking without advanced treatment'),
-        pw.Bullet(text: 'Issue public health advisory for affected communities'),
-        pw.Bullet(text: 'Conduct fortnightly water quality lab testing'),
-        pw.Bullet(text: 'Engage State Pollution Control Board immediately'),
-        pw.Bullet(text: 'Implement Effluent Treatment Plants for all nearby industries'),
-        pw.Bullet(text: 'Deploy riverbank buffer vegetation zones'),
-      ],
+            pw.Header(level: 2, child: pw.Text('Full water quality parameters')),
+            pw.Table.fromTextArray(
+              headers: ['Parameter', 'Value', 'Unit', 'Status', 'Safe range'],
+              data: [
+                ['Nitrogen', node.data.nitrogen.toStringAsFixed(2), 'mg/L', _paramStatus(node.data.nitrogen, 5.0, 10.0), '<5 good, >10 critical'],
+                ['Phosphorus', node.data.phosphorus.toStringAsFixed(3), 'mg/L', _paramStatus(node.data.phosphorus, 0.05, 0.1), '<0.05 good, >0.1 critical'],
+                ['Potassium', node.data.potassium.toStringAsFixed(2), 'mg/L', 'Normal', '1-5 mg/L'],
+                ['Dissolved O2', node.data.dissolvedOxygen.toStringAsFixed(2), 'mg/L', _paramStatusRev(node.data.dissolvedOxygen, 6.0, 4.0), '>6 good, <4 critical'],
+                ['Temperature', node.data.temperature.toStringAsFixed(1), 'C', 'Normal', '20-30 C'],
+                ['pH', node.data.pH.toStringAsFixed(2), '', _phStatus(node.data.pH), '6.5-8.5'],
+                ['Turbidity', node.data.turbidity.toStringAsFixed(1), 'NTU', _paramStatus(node.data.turbidity, 25.0, 50.0), '<25 good, >50 critical'],
+                ['BOD', node.data.bod.toStringAsFixed(2), 'mg/L', _paramStatus(node.data.bod, 3.0, 6.0), '<3 good, >6 critical'],
+                ['Conductivity', node.data.conductivity.toStringAsFixed(0), 'uS/cm', _paramStatus(node.data.conductivity, 500, 800), '<500 good'],
+                ['Heavy metals', node.data.heavyMetals.toStringAsFixed(2), '/10', _paramStatus(node.data.heavyMetals, 2.5, 5.0), '<2.5 good'],
+                ['Coliform', node.data.coliformCount.toStringAsFixed(0), 'CFU/100mL', _paramStatus(node.data.coliformCount, 500, 1000), '<500 safe'],
+                ['Moisture', node.data.moisture.toStringAsFixed(1), '%', 'Info', '-'],
+              ],
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+              cellStyle: const pw.TextStyle(fontSize: 9),
+            ),
+            pw.SizedBox(height: 10),
+            pw.Header(level: 2, child: pw.Text('Nearby industrial areas (map/API)')),
+            ...node.nearbyFactories.map((f) => pw.Bullet(text: _pdfSafe(f))),
+            if (_factoryAnalysis != null) ...[
+              pw.SizedBox(height: 10),
+              pw.Header(level: 2, child: pw.Text('Pollution source analysis')),
+              pw.Text('Primary polluters:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+              ...(_factoryAnalysis!['primaryPolluters'] as List).map(
+                (p) => pw.Bullet(text: _pdfSafe(p.toString())),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Text('Pollution types:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+              ...(_factoryAnalysis!['pollutionTypes'] as List).map(
+                (p) => pw.Bullet(text: _pdfSafe(p.toString())),
+              ),
+            ],
+            pw.SizedBox(height: 10),
+            pw.Header(level: 2, child: pw.Text('Correlation insights')),
+            ...node.data.getCorrelations().map(
+              (c) => pw.Padding(
+                padding: const pw.EdgeInsets.only(bottom: 8),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      '${_pdfSafe(c.title)} (${_pdfSafe(c.paramA)} / ${_pdfSafe(c.paramB)})',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+                    ),
+                    pw.Text(_pdfSafe(c.description), style: const pw.TextStyle(fontSize: 8)),
+                    pw.Text('Action: ${_pdfSafe(c.action)}', style: const pw.TextStyle(fontSize: 8)),
+                  ],
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 10),
+            pw.Header(level: 2, child: pw.Text('AI / expert analysis')),
+            pw.Text(
+              _pdfSafe(_aiAnalysis) == '' ? 'Analysis not available. Open this station on the device to refresh AI text, then export again.' : _pdfSafe(_aiAnalysis),
+              style: const pw.TextStyle(fontSize: 8),
+            ),
+            pw.SizedBox(height: 10),
+            pw.Header(level: 2, child: pw.Text('Recommended actions')),
+            pw.Bullet(text: 'Do not use river water for drinking without advanced treatment where parameters are elevated.'),
+            pw.Bullet(text: 'Issue public health advisory for affected communities when coliform or heavy metals are high.'),
+            pw.Bullet(text: 'Conduct regular lab confirmation of sensor readings.'),
+            pw.Bullet(text: 'Engage State Pollution Control Board for critical stretches.'),
+            pw.Bullet(text: 'Ensure industrial ETP compliance and riparian buffers.'),
+          ]);
+        } else {
+          children.addAll([
+            pw.SizedBox(height: 12),
+            pw.Text(
+              'Tip: Tap a station on the map to load nearby industries, AI analysis, and pollution-source detail; export again to include section 4 (station detail) in this PDF.',
+              style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic),
+            ),
+          ]);
+        }
+
+        return children;
+      },
     ));
 
-    await Printing.layoutPdf(onLayout: (_) async => pdf.save());
+    try {
+      final bytes = await pdf.save();
+      final safeRiver = _pdfSafe(_activeRiver).replaceAll(RegExp(r'[^\w\-]+'), '_');
+      final suffix = focus != null ? '_${_pdfSafe(focus.id).replaceAll(RegExp(r'[^\w\-]+'), '_')}' : '_all_stations';
+      final filename = 'Jal_Rakshak_${safeRiver}$suffix.pdf';
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Opening share sheet - pick Files, Drive, or Save to download.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      await _sharePdfBytes(bytes, filename);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not export PDF: $e')),
+      );
+    }
   }
 
   String _paramStatus(double v, double warn, double crit) =>

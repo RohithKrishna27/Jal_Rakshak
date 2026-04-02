@@ -16,7 +16,6 @@ class PollutionPredictionScreen extends StatefulWidget {
 class _PollutionPredictionScreenState extends State<PollutionPredictionScreen> {
   final PredictionService _predictionService = PredictionService();
   final Set<Marker> _predictionMarkers = <Marker>{};
-  initialValue: _selectedIssueType,
 
   static const LatLng _defaultMapCenter = LatLng(22.9734, 78.6569);
   static const double _defaultMapZoom = 4.8;
@@ -185,7 +184,8 @@ class _PollutionPredictionScreenState extends State<PollutionPredictionScreen> {
   }) {
     final color = _riskColor(pollutionLevel, riskScore);
     final hue = _markerHue(color);
-    final markerId = MarkerId('prediction_${DateTime.now().millisecondsSinceEpoch}_${_predictionIndex++}');
+    final markerId = MarkerId(
+        'prediction_${DateTime.now().millisecondsSinceEpoch}_${_predictionIndex++}');
 
     final marker = Marker(
       markerId: markerId,
@@ -356,9 +356,10 @@ class _PollutionPredictionScreenState extends State<PollutionPredictionScreen> {
                     children: [
                       Text(
                         'Prediction Map',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -403,7 +404,8 @@ class _PollutionPredictionScreenState extends State<PollutionPredictionScreen> {
         child: ListTile(
           leading: const Icon(Icons.warning_amber_rounded, color: Colors.amber),
           title: const Text('Warning risk level'),
-          subtitle: Text('Risk score is ${riskPercent.toStringAsFixed(1)}. Please monitor closely.'),
+          subtitle: Text(
+              'Risk score is ${riskPercent.toStringAsFixed(1)}. Please monitor closely.'),
         ),
       );
     }
@@ -415,7 +417,8 @@ class _PollutionPredictionScreenState extends State<PollutionPredictionScreen> {
         child: ListTile(
           leading: const Icon(Icons.verified_rounded, color: Colors.green),
           title: const Text('Safe risk level'),
-          subtitle: Text('Risk score is ${riskPercent.toStringAsFixed(1)}. Conditions look safe.'),
+          subtitle: Text(
+              'Risk score is ${riskPercent.toStringAsFixed(1)}. Conditions look safe.'),
         ),
       );
     }
