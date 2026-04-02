@@ -391,6 +391,7 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
         const SizedBox(height: 16),
         TextField(
           controller: _companyName,
+          onChanged: (_) => setState(() {}),
           decoration: const InputDecoration(
             labelText: 'Registered company name',
             border: OutlineInputBorder(),
@@ -615,32 +616,53 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
     );
   }
 
+  /// True when the citizen report names / matches the industry’s registered company (Compliance tab).
+  bool _reportMatchesRegisteredCompany(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    String registeredLower,
+  ) {
+    if (registeredLower.length < 2) return false;
+    final data = doc.data();
+    final suspected =
+        (data['suspectedCompanyName'] as String?)?.toLowerCase().trim() ?? '';
+    final addr = (data['companyAddress'] as String?)?.toLowerCase() ?? '';
+    if (suspected.isEmpty && addr.isEmpty) return false;
+
+    if (suspected.isNotEmpty) {
+      if (suspected.contains(registeredLower) || registeredLower.contains(suspected)) {
+        return true;
+      }
+      for (final w in registeredLower.split(RegExp(r'[\s,]+')).where((e) => e.length >= 3)) {
+        if (suspected.contains(w)) return true;
+      }
+      for (final w in suspected.split(RegExp(r'[\s,]+')).where((e) => e.length >= 3)) {
+        if (registeredLower.contains(w)) return true;
+      }
+    }
+    if (addr.isNotEmpty && addr.contains(registeredLower)) return true;
+    return false;
+  }
+
   Widget _buildComplaintsTab(IndustryPortalArgs args) {
+    final registered = _companyName.text.trim().toLowerCase();
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          'Complaints linked to ${_companyName.text.isEmpty ? args.adminDisplayName : _companyName.text}',
+          'Complaints — ${_companyName.text.isEmpty ? args.adminDisplayName : _companyName.text}',
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Citizen reports below come from normal users (Report Pollution): photo, suspected company, address, waste type and description. Other cards are demo system / regulator tickets.',
-          style: TextStyle(fontSize: 13, color: Colors.black87, height: 1.35),
+        Text(
+          registered.isEmpty
+              ? 'Save your registered company name on the Compliance tab to split reports into yours vs other companies. Until then, all citizen reports are listed under All company-related reports.'
+              : 'Reports that name or match “${_companyName.text.trim()}” appear first. Below that: all other company-related citizen reports.',
+          style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.35),
           softWrap: true,
         ),
         const SizedBox(height: 16),
-        Text(
-          'Citizen reports (live)',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: Colors.blue.shade900,
-          ),
-        ),
-        const SizedBox(height: 10),
         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: PollutionReportService.reportsStream(),
           builder: (context, snapshot) {
@@ -654,7 +676,7 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
               return Padding(
                 padding: const EdgeInsets.all(8),
                 child: Text(
-                  'Could not load citizen reports. In Firebase Console, allow authenticated read/write on `pollution_reports` and Storage path `pollution_reports/`.\n${snapshot.error}',
+                  'Could not load citizen reports. In Firebase Console, allow authenticated read/write on `pollution_reports`.\n${snapshot.error}',
                   style: const TextStyle(color: Colors.red, fontSize: 13),
                   softWrap: true,
                 ),
@@ -665,21 +687,98 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
-                  'No citizen reports yet. When users submit from Report Pollution, they appear here with photo and details.',
+                  'No citizen reports yet. When users submit from Report Pollution, they appear here with details.',
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
                 ),
               );
             }
+
+            final mine = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+            final others = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+            for (final d in docs) {
+              if (registered.isNotEmpty && _reportMatchesRegisteredCompany(d, registered)) {
+                mine.add(d);
+              } else {
+                others.add(d);
+              }
+            }
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: docs
-                  .map(
-                    (d) => Padding(
+              children: [
+                if (registered.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      Icon(Icons.business, color: Colors.green.shade800, size: 22),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'About your company (${mine.length})',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.green.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Citizen reports where the suspected company name or address matches your registration.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 10),
+                  if (mine.isEmpty)
+                    Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _citizenReportCard(d),
+                      child: Text(
+                        'No reports naming your company yet.',
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                      ),
+                    )
+                  else
+                    ...mine.map(
+                      (d) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _citizenReportCard(d, isAboutOurCompany: true),
+                      ),
                     ),
-                  )
-                  .toList(),
+                  const SizedBox(height: 20),
+                ],
+                Row(
+                  children: [
+                    Icon(Icons.corporate_fare_outlined, color: Colors.blue.shade900, size: 22),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        registered.isEmpty
+                            ? 'All company-related reports (${others.length})'
+                            : 'Other companies (${others.length})',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.blue.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  registered.isEmpty
+                      ? 'All pollution reports filed by normal users (other facilities / areas).'
+                      : 'Reports naming other industries or not matching your registered name.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+                const SizedBox(height: 10),
+                ...others.map(
+                  (d) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _citizenReportCard(d, isAboutOurCompany: false),
+                  ),
+                ),
+              ],
             );
           },
         ),
@@ -749,7 +848,10 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
     return '—';
   }
 
-  Widget _citizenReportCard(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+  Widget _citizenReportCard(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc, {
+    bool isAboutOurCompany = false,
+  }) {
     final d = doc.data();
     final company = (d['suspectedCompanyName'] as String?)?.trim() ?? '—';
     final address = (d['companyAddress'] as String?)?.trim() ?? '—';
@@ -759,13 +861,17 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
     final desc = (d['description'] as String?)?.trim() ?? '—';
     final photoUrl = d['photoUrl'] as String?;
     final status = (d['status'] as String?) ?? 'submitted';
-    final registered = _companyName.text.trim().toLowerCase();
-    final possibleMatch = registered.isNotEmpty &&
-        company.toLowerCase().contains(registered);
 
     return Card(
       clipBehavior: Clip.antiAlias,
       elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isAboutOurCompany ? Colors.green.shade600 : Colors.transparent,
+          width: isAboutOurCompany ? 2 : 0,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -816,10 +922,10 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     _statusChip(_mapCitizenStatus(status)),
-                    if (possibleMatch)
+                    if (isAboutOurCompany)
                       Chip(
-                        label: const Text('Name match', style: TextStyle(fontSize: 11)),
-                        backgroundColor: Colors.amber.shade100,
+                        label: const Text('Your registered company', style: TextStyle(fontSize: 11)),
+                        backgroundColor: Colors.green.shade100,
                         padding: EdgeInsets.zero,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
