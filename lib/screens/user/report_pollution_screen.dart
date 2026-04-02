@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:priject_jalrakshak/screens/user/user_screen_welcome.dart';
 import 'package:priject_jalrakshak/services/pollution_report_service.dart';
 
-/// Normal user: suspected company, address, waste type, description → Firestore.
+/// Normal user: company name, location, water body, issue type, description → Firestore.
 class ReportPollutionScreen extends StatefulWidget {
   const ReportPollutionScreen({super.key});
 
@@ -13,17 +13,16 @@ class ReportPollutionScreen extends StatefulWidget {
 class _ReportPollutionScreenState extends State<ReportPollutionScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _companyController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
   final TextEditingController _waterBodyController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _locationNotesController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
 
-  String _wasteType = 'Industrial effluent / chemical';
+  String _wasteType = 'Sewage discharge';
   bool _submitting = false;
 
   static const _wasteTypes = [
+    'Sewage discharge',
     'Industrial effluent / chemical',
-    'Sewage / domestic waste',
     'Plastic & solid waste',
     'Foam / oil / grease on water',
     'Fly ash / construction debris',
@@ -34,10 +33,9 @@ class _ReportPollutionScreenState extends State<ReportPollutionScreen> {
   @override
   void dispose() {
     _companyController.dispose();
-    _addressController.dispose();
     _waterBodyController.dispose();
     _descriptionController.dispose();
-    _locationNotesController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
@@ -48,11 +46,11 @@ class _ReportPollutionScreenState extends State<ReportPollutionScreen> {
     try {
       await PollutionReportService.submit(
         suspectedCompanyName: _companyController.text,
-        companyAddress: _addressController.text,
+        companyAddress: _locationController.text,
         wasteType: _wasteType,
         description: _descriptionController.text,
         waterBody: _waterBodyController.text,
-        locationNotes: _locationNotesController.text,
+        locationNotes: '',
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,10 +62,9 @@ class _ReportPollutionScreenState extends State<ReportPollutionScreen> {
         ),
       );
       _companyController.clear();
-      _addressController.clear();
       _waterBodyController.clear();
       _descriptionController.clear();
-      _locationNotesController.clear();
+      _locationController.clear();
       setState(() => _wasteType = _wasteTypes.first);
     } catch (e) {
       if (!mounted) return;
@@ -94,9 +91,9 @@ class _ReportPollutionScreenState extends State<ReportPollutionScreen> {
           children: [
             const UserScreenWelcome(
               icon: Icons.report_problem_outlined,
-              title: 'Report what you see',
+              title: 'Welcome — speak up for clean water',
               subtitle:
-                  'Suspected company, address, waste type and description are shared with the industry portal for follow-up.',
+                  'Your report helps authorities and communities act faster. Add clear details and location hints.',
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -113,7 +110,7 @@ class _ReportPollutionScreenState extends State<ReportPollutionScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Company & location',
+                          'Incident details',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
@@ -123,9 +120,10 @@ class _ReportPollutionScreenState extends State<ReportPollutionScreen> {
                         const SizedBox(height: 14),
                         TextFormField(
                           controller: _companyController,
+                          textCapitalization: TextCapitalization.words,
                           decoration: const InputDecoration(
-                            labelText: 'Suspected company / industry name',
-                            hintText: 'As on signboard or known locally',
+                            labelText: 'Company name',
+                            hintText: 'Suspected industry or site name',
                             border: OutlineInputBorder(),
                           ),
                           validator: (v) => (v == null || v.trim().length < 2)
@@ -134,42 +132,22 @@ class _ReportPollutionScreenState extends State<ReportPollutionScreen> {
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
-                          controller: _addressController,
-                          maxLines: 2,
-                          decoration: const InputDecoration(
-                            labelText: 'Company or site address',
-                            hintText: 'Area, district, pincode if known',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (v) => (v == null || v.trim().length < 5)
-                              ? 'Enter a clearer address (min 5 characters)'
-                              : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
                           controller: _waterBodyController,
+                          textCapitalization: TextCapitalization.sentences,
                           decoration: const InputDecoration(
-                            labelText: 'Water body affected',
-                            hintText: 'e.g. Yamuna — Wazirabad stretch',
+                            labelText: 'Water body',
+                            hintText: 'River, drain, lake, or stretch',
                             border: OutlineInputBorder(),
                           ),
                           validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Enter the river / drain / lake name'
+                              ? 'Enter the water body'
                               : null,
                         ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Type of waste / pollution',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
                           value: _wasteType,
                           decoration: const InputDecoration(
-                            labelText: 'Waste / pollution type',
+                            labelText: 'Issue type',
                             border: OutlineInputBorder(),
                           ),
                           items: _wasteTypes
@@ -181,14 +159,14 @@ class _ReportPollutionScreenState extends State<ReportPollutionScreen> {
                                   if (v != null) setState(() => _wasteType = v);
                                 },
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         TextFormField(
                           controller: _descriptionController,
                           maxLines: 5,
+                          textCapitalization: TextCapitalization.sentences,
                           decoration: const InputDecoration(
                             labelText: 'Description',
-                            hintText:
-                                'Colour, smell, time of day, how often you see it, any pipes or drains',
+                            hintText: 'What did you see?',
                             border: OutlineInputBorder(),
                           ),
                           validator: (v) =>
@@ -198,10 +176,12 @@ class _ReportPollutionScreenState extends State<ReportPollutionScreen> {
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
-                          controller: _locationNotesController,
+                          controller: _locationController,
+                          maxLines: 2,
+                          textCapitalization: TextCapitalization.sentences,
                           decoration: const InputDecoration(
-                            labelText: 'Extra location notes (optional)',
-                            hintText: 'Landmark, bridge, GPS from maps app',
+                            labelText: 'Location (optional)',
+                            hintText: 'Area, landmark, or address',
                             border: OutlineInputBorder(),
                           ),
                         ),
