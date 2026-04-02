@@ -78,6 +78,9 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
 
   GoogleMapController? _mapController;
 
+  /// Single subscription — recreating the stream on each parent [setState] (e.g. home clock) made the list reconnect constantly.
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _pollutionReportsStream;
+
   static const _defaultLat = 28.6139;
   static const _defaultLng = 77.2090;
 
@@ -140,6 +143,7 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
       vsync: this,
       initialIndex: start,
     );
+    _pollutionReportsStream = PollutionReportService.reportsStream();
     _loadCompanyProfile();
   }
 
@@ -391,7 +395,6 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
         const SizedBox(height: 16),
         TextField(
           controller: _companyName,
-          onChanged: (_) => setState(() {}),
           decoration: const InputDecoration(
             labelText: 'Registered company name',
             border: OutlineInputBorder(),
@@ -644,28 +647,36 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
   }
 
   Widget _buildComplaintsTab(IndustryPortalArgs args) {
-    final registered = _companyName.text.trim().toLowerCase();
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text(
-          'Complaints — ${_companyName.text.isEmpty ? args.adminDisplayName : _companyName.text}',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          registered.isEmpty
-              ? 'Save your registered company name on the Compliance tab to split reports into yours vs other companies. Until then, all citizen reports are listed under All company-related reports.'
-              : 'Reports that name or match “${_companyName.text.trim()}” appear first. Below that: all other company-related citizen reports.',
-          style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.35),
-          softWrap: true,
-        ),
-        const SizedBox(height: 16),
-        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: PollutionReportService.reportsStream(),
-          builder: (context, snapshot) {
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _companyName,
+          builder: (context, companyValue, _) {
+            final registered = companyValue.text.trim().toLowerCase();
+            final cn = companyValue.text.trim();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Complaints — ${cn.isEmpty ? args.adminDisplayName : cn}',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  registered.isEmpty
+                      ? 'Save your registered company name on the Compliance tab to split reports into yours vs other companies. Until then, all citizen reports are listed under All company-related reports.'
+                      : 'Reports that name or match “$cn” appear first. Below that: all other company-related citizen reports.',
+                  style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.35),
+                  softWrap: true,
+                ),
+                const SizedBox(height: 16),
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _pollutionReportsStream,
+                  builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
@@ -777,6 +788,10 @@ class _IndustryPortalScreenState extends State<IndustryPortalScreen>
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _citizenReportCard(d, isAboutOurCompany: false),
                   ),
+                ),
+              ],
+            );
+                  },
                 ),
               ],
             );
